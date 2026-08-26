@@ -10,10 +10,10 @@ STOPWORDS = {
 }
 
 CORE_TAGS = [
-    "quotex","trading","trading shorts","forex trading","day trading",
-    "technical analysis","price action","trading strategy","trader",
-    "candlestick trading","market analysis","trading for beginners",
-    "trading psychology","risk management","bull and bear vision"
+    "trading","trading shorts","forex trading","day trading","technical analysis",
+    "price action","trading strategy","trader","candlestick trading","market analysis",
+    "trading for beginners","trading psychology","risk management","bull and bear vision",
+    "stock market","forex","chart analysis","trading education"
 ]
 
 HOOK_TITLES = {
@@ -34,30 +34,44 @@ HOOK_TITLES = {
         "Trader Mindset > Everything 📈🧠 #shorts",
     ],
     "generic": [
-        "Live Trading Setup You Need to See 📈🔥 #shorts",
+        "Trading Setup You Need to See 📈🔥 #shorts",
         "This Trading Moment Is Wild 👀📊 #shorts",
         "One Chart. One Setup. Full Focus. 🔥📈 #shorts",
         "Trading Setup Worth Watching Till The End 👀 #shorts",
     ],
 }
 
+# Focused hashtags: broad discovery + niche relevance + channel branding.
 HASHTAG_GROUPS = {
     "strategy": [
-        "#shorts","#trading","#quotex","#tradingstrategy","#priceaction",
-        "#technicalanalysis","#forextrading","#daytrading","#tradingtips"
+        "#shorts","#youtubeshorts","#trading","#tradingstrategy","#priceaction",
+        "#technicalanalysis","#forex","#forextrading","#daytrading","#stockmarket",
+        "#tradingtips","#candlestick","#chartanalysis","#trader","#bullandbearvision"
     ],
     "indicator": [
-        "#shorts","#trading","#quotex","#tradingindicator","#technicalanalysis",
-        "#priceaction","#forextrading","#daytrading","#trader"
+        "#shorts","#youtubeshorts","#trading","#tradingindicator","#technicalanalysis",
+        "#priceaction","#forex","#forextrading","#daytrading","#stockmarket",
+        "#tradingtips","#chartanalysis","#trader","#tradingeducation","#bullandbearvision"
     ],
     "lifestyle": [
-        "#shorts","#trading","#quotex","#traderlife","#tradingmotivation",
-        "#tradinglifestyle","#forextrading","#mindset","#trader"
+        "#shorts","#youtubeshorts","#trading","#traderlife","#tradingmotivation",
+        "#tradinglifestyle","#forex","#forextrading","#stockmarket","#mindset",
+        "#discipline","#trader","#financialeducation","#bullandbearvision"
     ],
     "generic": [
-        "#shorts","#trading","#quotex","#forextrading","#priceaction",
-        "#technicalanalysis","#daytrading","#trader","#tradingvideo"
+        "#shorts","#youtubeshorts","#trading","#forex","#forextrading",
+        "#priceaction","#technicalanalysis","#daytrading","#stockmarket","#trader",
+        "#tradingtips","#chartanalysis","#tradingeducation","#bullandbearvision"
     ],
+}
+
+KEYWORD_HASHTAGS = {
+    "rsi": "#rsi", "macd": "#macd", "ema": "#ema", "bollinger": "#bollingerbands",
+    "breakout": "#breakouttrading", "candlestick": "#candlestick", "scalping": "#scalping",
+    "support": "#supportandresistance", "resistance": "#supportandresistance",
+    "bitcoin": "#bitcoin", "btc": "#bitcoin", "crypto": "#crypto",
+    "gold": "#goldtrading", "xauusd": "#xauusd", "eurusd": "#eurusd",
+    "gbpusd": "#gbpusd", "usdjpy": "#usdjpy"
 }
 
 
@@ -83,7 +97,6 @@ def _classify(text: str) -> str:
     indicator_words = ["rsi","macd","ema","bollinger","indicator","aroon","stochastic"]
     strategy_words = ["strategy","setup","entry","support","resistance","breakout","price action","candlestick","analysis"]
     lifestyle_words = ["lifestyle","motivation","money","success","grind","luxury","mindset","trader life","pov"]
-
     if any(w in t for w in indicator_words):
         return "indicator"
     if any(w in t for w in strategy_words):
@@ -91,6 +104,17 @@ def _classify(text: str) -> str:
     if any(w in t for w in lifestyle_words):
         return "lifestyle"
     return "generic"
+
+
+def _hashtags(content_type: str, source_text: str) -> list[str]:
+    result = list(HASHTAG_GROUPS[content_type])
+    lower = source_text.lower()
+    # Add topic-specific hashtags only when the source metadata actually mentions them.
+    for keyword, hashtag in KEYWORD_HASHTAGS.items():
+        if keyword in lower and hashtag not in result:
+            result.insert(3, hashtag)
+    # Keep a strong but non-spammy set.
+    return result[:15]
 
 
 def build_metadata(info, cfg):
@@ -107,20 +131,19 @@ def build_metadata(info, cfg):
     for tag in CORE_TAGS + dynamic_keywords:
         if tag and tag not in tags:
             tags.append(tag)
-
     max_tags = int(cfg.get("metadata", {}).get("max_tags", 18))
     tags = tags[:max_tags]
 
-    hashtags = HASHTAG_GROUPS[content_type][:8]
+    hashtags = _hashtags(content_type, source_text)
 
     if content_type in {"strategy", "indicator"}:
-        hook = "Quick breakdown of a trading setup, chart logic and market structure."
+        hook = "Quick trading breakdown: chart setup, price action and market structure in under a minute."
         category = "27"
     elif content_type == "lifestyle":
         hook = "Trader mindset, discipline and the lifestyle behind the charts."
         category = "22"
     else:
-        hook = "A fast trading clip focused on charts, setups and execution."
+        hook = "Fast trading content focused on charts, setups, price action and execution."
         category = "22"
 
     source_hint = ""
@@ -128,9 +151,8 @@ def build_metadata(info, cfg):
         source_hint = f"\n\nTopic: {source_title[:120]}"
 
     description = (
-        f"{hook}"
-        f"{source_hint}\n\n"
-        f"More trading content from {brand}.\n\n"
+        f"{hook}{source_hint}\n\n"
+        f"Follow {brand} for more trading Shorts, chart analysis and trading education.\n\n"
         "⚠️ Educational/entertainment content only. Trading involves financial risk. "
         "No setup, strategy or indicator guarantees profit.\n\n"
         + " ".join(hashtags)
