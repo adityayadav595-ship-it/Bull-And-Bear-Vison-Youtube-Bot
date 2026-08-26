@@ -1,13 +1,13 @@
 from __future__ import annotations
+
 from pathlib import Path
+import random
 
 from bot.config import load_config
-from bot.history import load_history, append_history
 from bot.downloader import (
     read_sources,
     discover_from_source,
     download_candidate,
-    source_key,
 )
 from bot.ranker import choose_random
 from bot.metadata import build_metadata
@@ -18,21 +18,25 @@ CFG = load_config()
 
 
 def collect_candidates():
-    history_path = CFG.get("history_file", "uploaded_ids.txt")
-    seen = load_history(history_path)
-
     sources = read_sources(
-        CFG.get("sources_file", "pinterest_sources.txt")
+        CFG.get(
+            "sources_file",
+            "pinterest_sources.txt"
+        )
     )
 
     if not sources:
         raise RuntimeError(
-            "No approved Pinterest sources configured."
+            "No Pinterest sources configured."
         )
 
-    unseen = []
+    candidates = []
+
+    # Shuffle source order too
+    random.shuffle(sources)
 
     for source in sources:
+
         print("Checking source:", source)
 
         try:
@@ -40,28 +44,28 @@ def collect_candidates():
                 source,
                 CFG
             )
+
         except Exception as e:
-            print("Discovery failed:", e)
+            print("Source discovery failed:", e)
             continue
 
         for item in items:
-            key = source_key(
-                item["url"],
-                item.get("id", "")
-            )
 
-            if key in seen:
-                print("Already uploaded, skipping:", item["url"])
+            if not item.get("url"):
                 continue
 
-            item["_key"] = key
-            unseen.append(item)
+            candidates.append(item)
 
-    print("Total videos found:", len(seen))
-    return seen
+    print(
+        "Total video candidates:",
+        len(candidates)
+    )
+
+    return candidates
 
 
 def main():
+
     if not CFG.get("rights_confirmed"):
         raise RuntimeError(
             "I_HAVE_RIGHTS_TO_REPOST must be true."
@@ -70,34 +74,64 @@ def main():
     candidates = collect_candidates()
 
     if not candidates:
-        print("No seen eligible video found.")
+        print(
+            "No usable Pinterest video found."
+        )
         return
 
-    picked = choose_random_unseen(candidates)
+    # Prefer lower-view videos,
+    # random among best low-view pool.
+    picked = choose_random(
+        candidates,
+        pool_size=8
+    )
 
-    print("Random video selected:")
-    print("Title:", picked.get("title"))
-    print("URL:", picked["url"])
+    if not picked:
+        print("Nothing selected.")
+        return
 
     file_path = None
 
     try:
-        print("Downloading selected video...")
+
+        print("Downloading video...")
+
         file_path, full_info = download_candidate(
             picked,
             CFG
         )
 
-        print("Generating metadata...")
+        print(
+            "Downloaded:",
+            file_path
+        )
+
+        print(
+            "Creating YouTube metadata..."
+        )
+
         meta = build_metadata(
             full_info,
             CFG
         )
 
-        print("Connecting to YouTube...")
-        youtube = get_youtube(CFG)
+        print(
+            "YouTube title:",
+            meta["title"]
+        )
 
-        print("Uploading to YouTube...")
+        print(
+            "Connecting to YouTube..."
+        )
+
+        youtube = get_youtube(
+            CFG
+        )
+
+        print(
+            "Uploading directly to YouTube..."
+        )
+
         video_id = upload_video(
             youtube,
             file_path,
@@ -105,19 +139,28 @@ def main():
             CFG
         )
 
-        print("SUCCESS:", video_id)
-
-        append_history(
-            CFG.get("history_file", "uploaded_ids.txt"),
-            picked["_key"]
+        print(
+            "UPLOAD SUCCESSFUL"
         )
 
-        print("Saved to upload history.")
+        print(
+            "YouTube video ID:",
+            video_id
+        )
 
     finally:
-        if file_path and Path(file_path).exists():
+
+        if (
+            file_path
+            and Path(file_path).exists()
+        ):
+
             try:
                 Path(file_path).unlink()
+                print(
+                    "Temporary video deleted."
+                )
+
             except OSError:
                 pass
 
