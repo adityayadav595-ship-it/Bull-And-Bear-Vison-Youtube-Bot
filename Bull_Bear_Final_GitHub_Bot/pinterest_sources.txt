@@ -1,5 +1,6 @@
 # Add ONE approved Pinterest Pin / board / profile URL per line.
 # The bot scores candidates, skips duplicates, and randomly chooses from the best few.
 # Only add sources whose videos you own or are licensed/authorized to repost.
-# Example:
-# https://www.pinterest.com/USERNAME/TRADING-BOARD/
+https://in.pinterest.com/search/pins/?q=quotex%20trading%20live%20videos%20hotels&rs=typed
+https://in.pinterest.com/search/pins/?q=quotex%20trading%20live%20videos&rs=typed
+https://in.pinterest.com/search/pins/?q=quotex%20trading%20live%20video%20india&rs=typed
