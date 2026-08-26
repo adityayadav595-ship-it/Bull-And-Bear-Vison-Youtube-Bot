@@ -1,7 +1,6 @@
-# Add ONE approved Pinterest Pin / board / profile URL per line.
+# Add ONE approved Pinterest board / profile URL per line.
 # The bot scores candidates, skips duplicates, and randomly chooses from the best few.
 # Only add sources whose videos you own or are licensed/authorized to repost.
-https://in.pinterest.com/pin/764486105541829812/
 https://in.pinterest.com/rimeshtigga/
 https://in.pinterest.com/quotextrader007/
 https://in.pinterest.com/winlouhxauusd/
