@@ -1,0 +1,9 @@
+# Put ONE Pinterest Pin, board, or profile URL per line.
+# The bot checks these sources each cycle and picks the newest unseen video.
+#
+# Examples:
+# https://www.pinterest.com/pin/123456789012345678/
+# https://www.pinterest.com/USERNAME/BOARDNAME/
+#
+# IMPORTANT:
+# Only add sources containing videos you own or have permission/licence to repost.
