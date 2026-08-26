@@ -9,7 +9,7 @@ from bot.downloader import (
     download_candidate,
     source_key,
 )
-from bot.ranker import choose_random_unseen
+from bot.ranker import choose_random
 from bot.metadata import build_metadata
 from bot.youtube import get_youtube, upload_video
 
@@ -17,7 +17,7 @@ from bot.youtube import get_youtube, upload_video
 CFG = load_config()
 
 
-def collect_unseen_candidates():
+def collect_candidates():
     history_path = CFG.get("history_file", "uploaded_ids.txt")
     seen = load_history(history_path)
 
@@ -57,8 +57,8 @@ def collect_unseen_candidates():
             item["_key"] = key
             unseen.append(item)
 
-    print("Total unseen videos found:", len(unseen))
-    return unseen
+    print("Total videos found:", len(seen))
+    return seen
 
 
 def main():
@@ -67,10 +67,10 @@ def main():
             "I_HAVE_RIGHTS_TO_REPOST must be true."
         )
 
-    candidates = collect_unseen_candidates()
+    candidates = collect_candidates()
 
     if not candidates:
-        print("No unseen eligible video found.")
+        print("No seen eligible video found.")
         return
 
     picked = choose_random_unseen(candidates)
