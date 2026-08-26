@@ -56,6 +56,25 @@ def _opts(cfg, download=False):
     return opts
 
 
+def _resolve_short_url(url):
+    if "pin.it/" not in url.lower():
+        return url
+    try:
+        req = urllib.request.Request(
+            url,
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36"
+            },
+        )
+        with urllib.request.urlopen(req, timeout=20) as response:
+            resolved = response.geturl()
+        print("Resolved Pinterest share URL:", url, "->", resolved)
+        return resolved
+    except Exception as e:
+        print("Could not resolve Pinterest share URL:", url, e)
+        return url
+
+
 def _is_pin(url):
     return "/pin/" in url.lower()
 
@@ -76,7 +95,6 @@ def _get_profile_pin_urls(profile_url, cfg):
     print("Scanning Pinterest profile/board:", profile_url)
     pages = [profile_url]
 
-    # Pinterest sometimes serves different embedded data on locale/canonical hosts.
     if "in.pinterest.com" in profile_url:
         pages.append(profile_url.replace("in.pinterest.com", "www.pinterest.com"))
 
@@ -98,7 +116,6 @@ def _get_profile_pin_urls(profile_url, cfg):
                     seen.add(pin_id)
                     pin_ids.append(pin_id)
 
-    # Shuffle before capping so repeated runs can explore different embedded pins.
     random.shuffle(pin_ids)
     max_items = int(cfg.get("discovery", {}).get("max_candidates_per_source", 40))
     urls = [f"https://www.pinterest.com/pin/{pin_id}/" for pin_id in pin_ids[:max_items]]
@@ -117,7 +134,6 @@ def _probe_pin(pin_url, cfg):
     if not info:
         return None
 
-    # Keep only items that look like downloadable video media.
     ext = (info.get("ext") or "").lower()
     formats = info.get("formats") or []
     has_video = ext in VIDEO_EXTS or any((f.get("vcodec") not in (None, "none")) for f in formats)
@@ -137,6 +153,8 @@ def _probe_pin(pin_url, cfg):
 
 
 def discover_from_source(source_url, cfg):
+    source_url = _resolve_short_url(source_url)
+
     if _is_pin(source_url):
         item = _probe_pin(source_url, cfg)
         return [item] if item else []
