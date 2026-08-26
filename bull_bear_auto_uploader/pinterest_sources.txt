@@ -2,8 +2,8 @@
 # The bot checks these sources each cycle and picks the newest unseen video.
 #
 # Examples:
-# https://in.pinterest.com/pin/963207439059558009/
-# https://in.pinterest.com/rimeshtigga/_created/
+https://in.pinterest.com/pin/963207439059558009/
+https://in.pinterest.com/rimeshtigga/_created/
 #
 # IMPORTANT:
 # Only add sources containing videos you own or have permission/licence to repost.
