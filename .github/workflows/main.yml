@@ -1,1 +1,55 @@
+name: Bull Bear YouTube Bot
 
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 */3 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  upload-one-video:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Install dependencies
+        working-directory: bull_bear_auto_uploader
+        run: pip install -r requirements.txt
+
+      - name: Run bot
+        working-directory: bull_bear_auto_uploader
+        env:
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          I_HAVE_RIGHTS_TO_REPOST: "true"
+          CHANNEL_BRAND: "Bull & Bear Vision"
+          YOUTUBE_PRIVACY: "public"
+          MADE_FOR_KIDS: "false"
+          CONTAINS_SYNTHETIC_MEDIA: "false"
+        run: python app.py
+
+      - name: Save upload history
+        run: |
+          if git diff --quiet -- bull_bear_auto_uploader/uploaded_ids.txt; then
+            echo "No history change."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bull_bear_auto_uploader/uploaded_ids.txt
+          git commit -m "Update uploaded video history"
+          git push
