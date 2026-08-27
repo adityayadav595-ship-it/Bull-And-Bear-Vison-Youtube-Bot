@@ -3,10 +3,17 @@ name: Bull Bear YouTube Bot
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 */3 * * *"
+    # GitHub cron uses UTC. :30 UTC every 3 hours = 6:00, 9:00, 12:00,
+    # 15:00, 18:00, 21:00, 00:00 and 03:00 in Asia/Kolkata.
+    # Using :30 also avoids GitHub's busiest top-of-hour scheduler window.
+    - cron: "30 */3 * * *"
 
 permissions:
   contents: write
+
+concurrency:
+  group: bull-bear-youtube-uploader
+  cancel-in-progress: false
 
 jobs:
   upload-one-video:
@@ -54,4 +61,5 @@ jobs:
 
           git add Bull_Bear_Final_GitHub_Bot/uploaded_ids.txt
           git commit -m "Update uploaded video history"
-          git push
+          git pull --rebase origin main
+          git push origin main
