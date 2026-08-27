@@ -24,8 +24,6 @@ def _duration_allowed(item: dict) -> bool:
     max_s = float(discovery.get("max_duration_seconds", 60) or 0)
     duration = item.get("duration")
 
-    # Unknown duration is allowed through discovery; yt-dlp gives us another
-    # chance to validate after the actual media is downloaded.
     if duration in (None, "", 0):
         return True
 
@@ -44,9 +42,10 @@ def _duration_allowed(item: dict) -> bool:
 
 
 def collect_candidates():
-    sources = read_sources(CFG.get("sources_file", "pinterest_sources.txt"))
+    sources = read_sources(CFG.get("sources_file", "approved_sources.txt"))
     if not sources:
-        raise RuntimeError("No Pinterest sources configured.")
+        print("No approved sources configured. Safe no-op; nothing will be uploaded.")
+        return []
 
     history_path = CFG.get("history_file", "uploaded_ids.txt")
     seen = load_history(history_path)
@@ -55,7 +54,7 @@ def collect_candidates():
     random.shuffle(sources)
 
     for source in sources:
-        print("Checking source:", source)
+        print("Checking approved source:", source)
         try:
             items = discover_from_source(source, CFG)
         except Exception as e:
@@ -83,7 +82,7 @@ def collect_candidates():
             candidates.append(item)
             discovered_this_run.add(key)
 
-    print("Total unseen policy-safe video candidates:", len(candidates))
+    print("Total unseen policy-safe approved video candidates:", len(candidates))
     return candidates
 
 
@@ -102,11 +101,11 @@ def main():
 
     candidates = collect_candidates()
     if not candidates:
-        print("No new usable policy-safe Pinterest video found this cycle.")
+        print("No approved policy-safe video found this cycle.")
         return
 
     discovery_cfg = CFG.get("discovery", {})
-    pool_size = int(discovery_cfg.get("smart_pool_size", 8) or 8)
+    pool_size = int(discovery_cfg.get("smart_pool_size", 5) or 5)
     ranked = rank_candidates(candidates, pool_size=pool_size)
     if not ranked:
         print("Nothing selected.")
@@ -117,11 +116,9 @@ def main():
     history_path = CFG.get("history_file", "uploaded_ids.txt")
     youtube = None
 
-    # If the best candidate fails a local quality/duplicate check, try the next
-    # strong candidate instead of wasting the whole scheduled cycle.
     max_attempts = min(
         len(ranked),
-        int(discovery_cfg.get("max_candidate_attempts_per_run", 5) or 5),
+        int(discovery_cfg.get("max_candidate_attempts_per_run", 3) or 3),
     )
 
     for attempt, picked in enumerate(ranked[:max_attempts], start=1):
@@ -134,7 +131,7 @@ def main():
         )
 
         try:
-            print("Downloading video...")
+            print("Downloading approved video...")
             file_path, full_info = download_candidate(picked, CFG)
             print("Downloaded:", file_path)
 
@@ -160,17 +157,14 @@ def main():
             meta = build_metadata(full_info, CFG)
             print("YouTube title:", meta["title"])
 
-            # Once we start talking to YouTube, do not automatically move to a
-            # second candidate on API/auth failures. This prevents accidental
-            # double uploads when a network response is ambiguous.
             stage = "upload"
             if youtube is None:
                 print("Connecting to YouTube...")
                 youtube = get_youtube(CFG)
 
-            print("Uploading directly to YouTube...")
+            print("Uploading to YouTube as PRIVATE for manual review...")
             video_id = upload_video(youtube, file_path, meta, CFG)
-            print("UPLOAD SUCCESSFUL")
+            print("PRIVATE UPLOAD SUCCESSFUL")
             print("YouTube video ID:", video_id)
 
             append_history(history_path, picked["_history_key"])
@@ -182,7 +176,7 @@ def main():
             print(f"Candidate attempt failed: {type(exc).__name__}: {exc}")
             if stage == "upload" or attempt >= max_attempts:
                 raise
-            print("Trying the next smart-ranked candidate...")
+            print("Trying the next smart-ranked approved candidate...")
         finally:
             _cleanup(file_path)
 
