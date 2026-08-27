@@ -1,10 +1,9 @@
-name: Bull and Bear Vision - Safe Private-First Runner
+name: Bull and Bear Vision - Direct Public Uploader
 
 on:
   workflow_dispatch:
   schedule:
-    # GitHub cron uses UTC. The bot may inspect sources every 3 hours,
-    # while upload cooldown/approval gates are enforced inside the app.
+    # GitHub cron uses UTC. Run every 3 hours; in-app cooldown and duplicate guards still apply.
     - cron: "30 */3 * * *"
 
 permissions:
@@ -15,7 +14,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  review-or-private-upload:
+  direct-public-upload:
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
@@ -35,7 +34,7 @@ jobs:
         working-directory: Bull_Bear_Final_GitHub_Bot
         run: pip install -r requirements.txt
 
-      - name: Run guarded private-first uploader
+      - name: Run direct public uploader
         working-directory: Bull_Bear_Final_GitHub_Bot
         env:
           YOUTUBE_CLIENT_ID: ${{ secrets.BOT_YOUTUBE_CLIENT_ID }}
@@ -45,15 +44,15 @@ jobs:
           CHANNEL_STATE: ${{ vars.CHANNEL_STATE || 'active' }}
           BOT_RUN_MODE: "upload"
           I_HAVE_RIGHTS_TO_REPOST: "true"
-          MANUAL_APPROVAL_REQUIRED: "true"
+          MANUAL_APPROVAL_REQUIRED: "false"
 
           CHANNEL_BRAND: "Bull and Bear Vision"
-          YOUTUBE_PRIVACY: "private"
+          YOUTUBE_PRIVACY: "public"
           MADE_FOR_KIDS: "false"
           CONTAINS_SYNTHETIC_MEDIA: "false"
         run: python app.py
 
-      - name: Save review queue and safe history
+      - name: Save upload history
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -66,10 +65,10 @@ jobs:
             2>/dev/null || true
 
           if git diff --cached --quiet; then
-            echo "No review/history change."
+            echo "No upload/history change."
             exit 0
           fi
 
-          git commit -m "Update Bull and Bear Vision review queue and upload history"
+          git commit -m "Update Bull and Bear Vision upload history"
           git pull --rebase origin main
           git push origin main
