@@ -147,9 +147,12 @@ def metadata_risk_reason(meta: dict, cfg: dict) -> str | None:
     if len(tags) > int(cfg.get("metadata", {}).get("max_tags", 6) or 6):
         return "too many tags"
 
-    hashtags = re.findall(r"#[A-Za-z0-9_]+", f"{title} {description}")
+    hashtags = {
+        hashtag.lower()
+        for hashtag in re.findall(r"#[A-Za-z0-9_]+", f"{title} {description}")
+    }
     if len(hashtags) > int(safety.get("max_hashtags", 3) or 3):
-        return "too many hashtags"
+        return "too many unique hashtags"
 
     history_path = safety.get("metadata_history_file", "metadata_history.jsonl")
     threshold = float(safety.get("metadata_similarity_threshold", 0.82) or 0.82)
