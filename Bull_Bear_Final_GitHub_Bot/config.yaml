@@ -4,6 +4,8 @@ hash_history_file: uploaded_hashes.txt
 
 youtube:
   privacy: private
+  auto_publish_enabled: true
+  auto_publish_after_minutes: 10
   made_for_kids: false
   contains_synthetic_media: false
   language: en
@@ -21,9 +23,8 @@ discovery:
   max_candidate_attempts_per_run: 3
 
 safety:
-  # Generic handoff defaults: channel is active, but the bot starts in review-only mode.
   channel_state: active
-  run_mode: review
+  run_mode: upload
   manual_approval_required: true
   approvals_file: approved_uploads.txt
   review_queue_file: review_queue.jsonl
