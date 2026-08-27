@@ -10,7 +10,6 @@ from googleapiclient.http import MediaFileUpload
 
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 
-# Remove aggressive/financial-promise language from auto-generated metadata.
 BLOCKED_PROMO_PATTERNS = [
     r"\b100\s*%\b",
     r"\bguaranteed?\b",
@@ -23,11 +22,13 @@ BLOCKED_PROMO_PATTERNS = [
     r"\bdouble\s+your\s+money\b",
     r"\brisk[-\s]*free\b",
     r"\bwin\s*rate\b",
-    r"\b90\s*%\s*(?:win|accuracy)\b",
-    r"\b95\s*%\s*(?:win|accuracy)\b",
-    r"\b99\s*%\s*(?:win|accuracy)\b",
     r"\bprofit\s+guarantee\b",
     r"\bguaranteed\s+returns?\b",
+    r"\bwithdrawal\s*proof\b",
+    r"\bprofit\s*proof\b",
+    r"\bvip\s*signals?\b",
+    r"\bpromo\s*code\b",
+    r"\bdeposit\s*bonus\b",
 ]
 
 RETRYABLE_HTTP_STATUS = {429, 500, 502, 503, 504}
@@ -68,11 +69,10 @@ def _safe_title(value):
 def _safe_description(value):
     description = unicodedata.normalize("NFKC", _remove_blocked_promo(value))
     description = "".join(ch for ch in description if unicodedata.category(ch)[0] != "C" or ch in "\n\t")
+    description = re.sub(r"https?://\S+", " ", description)
     description = re.sub(r"[ \t]+", " ", description)
     description = re.sub(r"\n{3,}", "\n\n", description).strip()
 
-    # Always append a short disclosure so auto-generated descriptions do not
-    # present trading outcomes as guaranteed or as personalized advice.
     disclosure = (
         "Educational content only. Not financial advice. Trading involves risk; "
         "results are not guaranteed."
@@ -91,14 +91,19 @@ def _retry_delay(attempt: int) -> float:
 
 def upload_video(youtube, file_path, meta, cfg):
     yt = cfg["youtube"]
+    privacy = str(yt.get("privacy", "private")).lower().strip()
+    if privacy != "private":
+        raise RuntimeError("Safety lock: automated uploads are PRIVATE-only. Publish manually in YouTube Studio after review.")
+
     title = _safe_title(meta.get("title"))
     description = _safe_description(meta.get("description"))
     tags = []
+    max_tags = int(cfg.get("metadata", {}).get("max_tags", 6) or 6)
     for item in (meta.get("tags") or []):
         tag = _remove_blocked_promo(str(item))[:100].strip()
         if tag and tag not in tags:
             tags.append(tag)
-    tags = tags[:8]
+    tags = tags[:max_tags]
 
     print("Validated YouTube title:", title)
     print("Validated YouTube tags:", tags)
@@ -112,7 +117,7 @@ def upload_video(youtube, file_path, meta, cfg):
             "defaultLanguage": yt.get("language", "en"),
         },
         "status": {
-            "privacyStatus": yt.get("privacy", "public"),
+            "privacyStatus": "private",
             "selfDeclaredMadeForKids": bool(yt.get("made_for_kids", False)),
             "containsSyntheticMedia": bool(yt.get("contains_synthetic_media", False)),
         },
