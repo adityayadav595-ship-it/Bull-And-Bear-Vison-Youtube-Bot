@@ -7,6 +7,13 @@ from pathlib import Path
 import re
 
 URL_RE = re.compile(r"https?://\S+", re.IGNORECASE)
+RISKY_CLAIM_RE = re.compile(
+    r"\b(100\s*%|guaranteed?|sure\s*shot|no\s*risk|risk[-\s]*free|easy\s*money|"
+    r"instant\s*profit|guaranteed\s*profit|guaranteed\s*returns?|profit\s*guarantee|"
+    r"double\s+your\s+money|get\s*rich|withdrawal\s*proof|profit\s*proof|vip\s*signals?|"
+    r"promo\s*code|deposit\s*bonus)\b",
+    re.IGNORECASE,
+)
 
 
 def _lines(path: str) -> list[str]:
@@ -47,13 +54,14 @@ def channel_allows_upload(cfg: dict) -> tuple[bool, str]:
     safety = cfg.get("safety", {})
     state = str(safety.get("channel_state", "suspended")).strip().lower()
     mode = str(safety.get("run_mode", "review")).strip().lower()
+    privacy = str(cfg.get("youtube", {}).get("privacy", "private")).strip().lower()
 
     if state != "active":
         return False, f"channel_state={state!r}; upload locked"
     if mode != "upload":
         return False, f"run_mode={mode!r}; review-only"
-    if str(cfg.get("youtube", {}).get("privacy", "private")).lower() != "private":
-        return False, "automatic uploads must remain private"
+    if privacy not in {"private", "public"}:
+        return False, f"unsupported youtube privacy={privacy!r}"
     return True, "ok"
 
 
@@ -72,7 +80,7 @@ def write_review_queue(ranked: list[dict], cfg: dict) -> None:
                 "duration": item.get("duration"),
                 "score": item.get("_smart_score"),
                 "reasons": item.get("_smart_reasons") or [],
-                "human_action": "Review content + reuse rights, then copy URL or source_key into approved_uploads.txt",
+                "human_action": "Optional review; automated upload still enforces policy, cooldown, and duplicate guards",
             }
         )
 
@@ -143,6 +151,10 @@ def metadata_risk_reason(meta: dict, cfg: dict) -> str | None:
 
     if URL_RE.search(title) or URL_RE.search(description):
         return "external URLs are blocked from automated metadata"
+
+    combined = " ".join([title, description, *tags])
+    if RISKY_CLAIM_RE.search(combined):
+        return "misleading or high-risk promotional/financial claim detected"
 
     if len(tags) > int(cfg.get("metadata", {}).get("max_tags", 6) or 6):
         return "too many tags"
