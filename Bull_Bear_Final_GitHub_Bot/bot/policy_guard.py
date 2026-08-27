@@ -23,7 +23,6 @@ def _lines(path: str) -> list[str]:
 def approval_tokens(path: str) -> set[str]:
     tokens: set[str] = set()
     for line in _lines(path):
-        # Human-readable notes may follow a pipe; the exact URL/key is first.
         token = line.split("|", 1)[0].strip()
         if token:
             tokens.add(token)
@@ -62,13 +61,11 @@ def write_review_queue(ranked: list[dict], cfg: dict) -> None:
     safety = cfg.get("safety", {})
     path = Path(safety.get("review_queue_file", "review_queue.jsonl"))
     limit = int(safety.get("review_queue_size", 10) or 10)
-    now = datetime.now(timezone.utc).isoformat()
 
     rows = []
     for item in ranked[:limit]:
         rows.append(
             {
-                "generated_at": now,
                 "url": item.get("url", ""),
                 "source_key": item.get("_history_key", ""),
                 "title": item.get("title", ""),
