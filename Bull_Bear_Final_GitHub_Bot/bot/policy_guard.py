@@ -7,11 +7,15 @@ from pathlib import Path
 import re
 
 URL_RE = re.compile(r"https?://\S+", re.IGNORECASE)
+# Keep automated metadata conservative without blocking ordinary educational
+# trading terminology. Only explicit certainty/no-risk/guaranteed-return claims
+# are rejected here.
 RISKY_CLAIM_RE = re.compile(
-    r"\b(100\s*%|guaranteed?|sure\s*shot|no\s*risk|risk[-\s]*free|easy\s*money|"
-    r"instant\s*profit|guaranteed\s*profit|guaranteed\s*returns?|profit\s*guarantee|"
-    r"double\s+your\s+money|get\s*rich|withdrawal\s*proof|profit\s*proof|vip\s*signals?|"
-    r"promo\s*code|deposit\s*bonus)\b",
+    r"\b(100\s*%\s*(?:guaranteed|sure|win(?:ning)?|profit|returns?)|"
+    r"guaranteed?\s+(?:profit|returns?|income|winning|win)|"
+    r"(?:profit|returns?|income)\s+guarantee(?:d)?|"
+    r"sure\s*shot|no\s*risk|risk[-\s]*free|"
+    r"double\s+your\s+money|get\s+rich\s+quick)\b",
     re.IGNORECASE,
 )
 
@@ -154,7 +158,7 @@ def metadata_risk_reason(meta: dict, cfg: dict) -> str | None:
 
     combined = " ".join([title, description, *tags])
     if RISKY_CLAIM_RE.search(combined):
-        return "misleading or high-risk promotional/financial claim detected"
+        return "explicit guaranteed-profit/no-risk financial claim detected"
 
     if len(tags) > int(cfg.get("metadata", {}).get("max_tags", 6) or 6):
         return "too many tags"
