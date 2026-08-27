@@ -130,7 +130,6 @@ def _truthful_title(source_title: str, topic: str) -> str:
     else:
         title = f"{topic} | Trading Education"
 
-    # One functional Shorts label only; no keyword-stuffed title.
     if "#shorts" not in title.lower():
         title += " #Shorts"
     return title[:95]
@@ -144,7 +143,7 @@ def build_metadata(info, cfg):
     source_title = _clean_text(info.get("title", ""))
     source_desc = _clean_text(info.get("description", ""))
     source_text = f"{source_title} {source_desc}".strip()
-    brand = cfg.get("brand", "Bull & Bear Vision")
+    brand = cfg.get("brand", "Trading Education Channel")
 
     topic, topic_hashtag = _detect_topic(source_text)
     title = _truthful_title(source_title, topic)
