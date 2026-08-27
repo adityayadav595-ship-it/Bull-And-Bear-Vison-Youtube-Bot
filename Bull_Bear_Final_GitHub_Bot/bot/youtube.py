@@ -92,8 +92,8 @@ def _retry_delay(attempt: int) -> float:
 def upload_video(youtube, file_path, meta, cfg):
     yt = cfg["youtube"]
     privacy = str(yt.get("privacy", "private")).lower().strip()
-    if privacy != "private":
-        raise RuntimeError("Safety lock: initial automated uploads must be PRIVATE.")
+    if privacy not in {"private", "public"}:
+        raise RuntimeError(f"Unsupported privacy setting: {privacy}")
 
     title = _safe_title(meta.get("title"))
     description = _safe_description(meta.get("description"))
@@ -107,6 +107,7 @@ def upload_video(youtube, file_path, meta, cfg):
 
     print("Validated YouTube title:", title)
     print("Validated YouTube tags:", tags)
+    print("Configured upload privacy:", privacy.upper())
 
     body = {
         "snippet": {
@@ -117,7 +118,7 @@ def upload_video(youtube, file_path, meta, cfg):
             "defaultLanguage": yt.get("language", "en"),
         },
         "status": {
-            "privacyStatus": "private",
+            "privacyStatus": privacy,
             "selfDeclaredMadeForKids": bool(yt.get("made_for_kids", False)),
             "containsSyntheticMedia": bool(yt.get("contains_synthetic_media", False)),
         },
@@ -147,8 +148,13 @@ def upload_video(youtube, file_path, meta, cfg):
 
 
 def publish_private_video_after_delay(youtube, video_id, cfg):
-    """Keep the upload private for a configured delay, then publish only if YouTube reports it ready."""
+    """Publish a private upload after delay when enabled; no-op for direct public uploads."""
     yt = cfg.get("youtube", {})
+    privacy = str(yt.get("privacy", "private")).lower().strip()
+    if privacy == "public":
+        print("Direct-public mode enabled; no delayed publish step required.")
+        return True
+
     if not bool(yt.get("auto_publish_enabled", False)):
         print("Auto-publish disabled; video remains PRIVATE.")
         return False
