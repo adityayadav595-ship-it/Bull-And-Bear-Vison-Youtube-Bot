@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import random
 import re
 
 STOPWORDS = {
@@ -24,34 +23,15 @@ TOPICS = [
     ("mindset", "Trading Psychology", "#TradingPsychology"),
 ]
 
-SAFE_TITLE_TEMPLATES = [
-    "{topic} Explained | Trading Education #Shorts",
-    "Understanding {topic} | Trading Education #Shorts",
-    "{topic}: A Quick Trading Lesson #Shorts",
-    "Learning {topic} | Trading Basics #Shorts",
-    "{topic} in Under a Minute | #Shorts",
-]
-
-GENERIC_TITLES = [
-    "Trading Chart Concept Explained | #Shorts",
-    "A Quick Trading Education Lesson | #Shorts",
-    "Understanding a Trading Setup | #Shorts",
-    "Trading Basics: Reading the Chart | #Shorts",
-]
-
 CORE_TAGS = [
     "trading education",
     "technical analysis",
-    "price action",
     "risk management",
     "market analysis",
     "chart analysis",
     "trading basics",
-    "bull and bear vision",
 ]
 
-# Metadata phrases that are commonly associated with get-rich-quick claims,
-# deceptive investment promotion, fake engagement or off-platform funneling.
 RISK_PATTERNS = [
     r"\b100\s*%\b",
     r"\bguaranteed?\b",
@@ -60,7 +40,7 @@ RISK_PATTERNS = [
     r"\bno\s*risk\b",
     r"\beasy\s*money\b",
     r"\binstant\s*profit\b",
-    r"\bdaily\s*profit\b",
+    r"\bdaily\s*(profit|income|earning)\b",
     r"\bfixed\s*return\b",
     r"\bguaranteed\s*(profit|return|income)\b",
     r"\bwin\s*rate\b",
@@ -68,6 +48,12 @@ RISK_PATTERNS = [
     r"\bdouble\s*(your\s*)?money\b",
     r"\bsecret\s*strategy\b",
     r"\bfree\s*money\b",
+    r"\bwithdrawal\s*proof\b",
+    r"\bprofit\s*proof\b",
+    r"\bcopy\s*trade\b",
+    r"\bvip\s*signals?\b",
+    r"\bpromo\s*code\b",
+    r"\bdeposit\s*bonus\b",
     r"\bsub\s*(4|for)\s*sub\b",
     r"\blike\s*(4|for)\s*like\b",
     r"\bview\s*(4|for)\s*view\b",
@@ -106,7 +92,7 @@ def compliance_reason(info) -> str | None:
 
 def _clean_text(value: str) -> str:
     text = re.sub(r"https?://\S+", " ", value or "")
-    text = re.sub(r"[^A-Za-z0-9+#% ._-]+", " ", text)
+    text = re.sub(r"[^A-Za-z0-9+#% .,_:-]+", " ", text)
     text = re.sub(r"\s+", " ", text).strip()
     for pattern in RISK_PATTERNS:
         text = re.sub(pattern, " ", text, flags=re.IGNORECASE)
@@ -121,17 +107,33 @@ def _detect_topic(source_text: str) -> tuple[str, str]:
     return "Trading Chart Analysis", "#TradingEducation"
 
 
-def _extract_keywords(text: str, limit: int = 4) -> list[str]:
+def _extract_keywords(text: str, limit: int = 3) -> list[str]:
     words = re.findall(r"[A-Za-z][A-Za-z0-9-]{2,}", text.lower())
     counts: dict[str, int] = {}
     for word in words:
         if word in STOPWORDS:
             continue
-        if any(re.search(pattern, word, flags=re.IGNORECASE) for pattern in RISK_PATTERNS):
-            continue
         counts[word] = counts.get(word, 0) + 1
     ranked = sorted(counts, key=lambda w: (-counts[w], -len(w), w))
     return ranked[:limit]
+
+
+def _truthful_title(source_title: str, topic: str) -> str:
+    clean = re.sub(r"#[A-Za-z0-9_]+", " ", source_title or "")
+    clean = re.sub(r"\s+", " ", clean).strip(" -|:,. ")
+
+    if clean:
+        if topic.lower() not in clean.lower():
+            title = f"{topic} | {clean}"
+        else:
+            title = clean
+    else:
+        title = f"{topic} | Trading Education"
+
+    # One functional Shorts label only; no keyword-stuffed title.
+    if "#shorts" not in title.lower():
+        title += " #Shorts"
+    return title[:95]
 
 
 def build_metadata(info, cfg):
@@ -145,19 +147,15 @@ def build_metadata(info, cfg):
     brand = cfg.get("brand", "Bull & Bear Vision")
 
     topic, topic_hashtag = _detect_topic(source_text)
-    if topic == "Trading Chart Analysis":
-        title = random.choice(GENERIC_TITLES)
-    else:
-        title = random.choice(SAFE_TITLE_TEMPLATES).format(topic=topic)
+    title = _truthful_title(source_title, topic)
 
-    # Small, relevant tag set only; no keyword stuffing.
     dynamic_keywords = _extract_keywords(source_text)
     tags: list[str] = []
     for tag in [topic.lower()] + CORE_TAGS + dynamic_keywords:
         tag = _clean_text(tag).lower()
         if tag and tag not in tags:
             tags.append(tag)
-    max_tags = int(cfg.get("metadata", {}).get("max_tags", 8))
+    max_tags = int(cfg.get("metadata", {}).get("max_tags", 6))
     tags = tags[:max_tags]
 
     hashtags = ["#Shorts", "#TradingEducation"]
@@ -165,10 +163,9 @@ def build_metadata(info, cfg):
         hashtags.append(topic_hashtag)
 
     description = (
-        f"Educational trading short from {brand}.\n\n"
-        f"Topic: {topic}. This video is shared for learning and commentary only. "
-        "It does not promise profits, guaranteed results, or provide financial advice.\n\n"
-        "Trading and investing involve risk. Always do your own research and use appropriate risk management.\n\n"
+        f"{topic} educational breakdown from {brand}. "
+        "This upload is for learning and general market education only; it does not promise profits or personalized financial advice.\n\n"
+        "Trading and investing involve risk. Review the setup independently and use appropriate risk management.\n\n"
         + " ".join(hashtags[:3])
     )
 
@@ -176,5 +173,5 @@ def build_metadata(info, cfg):
         "title": title[:95],
         "description": description[:2000],
         "tags": tags,
-        "category_id": "27",
+        "category_id": str(cfg.get("metadata", {}).get("category_id", "27")),
     }
