@@ -25,10 +25,9 @@ def load_config(path="config.yaml"):
     cfg["client_secret"] = os.getenv("YOUTUBE_CLIENT_SECRET", "").strip()
     cfg["refresh_token"] = os.getenv("YOUTUBE_REFRESH_TOKEN", "").strip()
     cfg["cookies_file"] = os.getenv("PINTEREST_COOKIES_FILE", "").strip() or None
-    cfg["brand"] = os.getenv("CHANNEL_BRAND", "Bull & Bear Vision").strip()
+    cfg["brand"] = os.getenv("CHANNEL_BRAND", "Trading Education Channel").strip()
 
-    # Legacy blanket rights flag is retained only for backwards compatibility.
-    # Upload eligibility is additionally gated per item by approved_uploads.txt.
+    # Upload eligibility is also gated per item by approved_uploads.txt.
     cfg["rights_confirmed"] = env_bool("I_HAVE_RIGHTS_TO_REPOST", False)
 
     yt = cfg["youtube"]
@@ -41,7 +40,7 @@ def load_config(path="config.yaml"):
 
     safety = cfg["safety"]
     safety["channel_state"] = os.getenv(
-        "CHANNEL_STATE", safety.get("channel_state", "suspended")
+        "CHANNEL_STATE", safety.get("channel_state", "active")
     ).strip().lower()
     safety["run_mode"] = os.getenv(
         "BOT_RUN_MODE", safety.get("run_mode", "review")
