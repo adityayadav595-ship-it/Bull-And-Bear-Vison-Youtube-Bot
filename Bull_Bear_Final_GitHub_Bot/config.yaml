@@ -9,7 +9,7 @@ discovery:
   max_duration_seconds: 60
 
 metadata:
-  max_tags: 18
+  max_tags: 8
 
 youtube:
   language: en
