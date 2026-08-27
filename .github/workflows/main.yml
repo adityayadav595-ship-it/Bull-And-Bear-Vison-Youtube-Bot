@@ -1,4 +1,4 @@
-name: YouTube Review Uploader - Safe Runner
+name: Market Vision Pro - Safe Review Runner
 
 on:
   workflow_dispatch:
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: youtube-review-uploader
+  group: market-vision-pro-uploader
   cancel-in-progress: false
 
 jobs:
@@ -38,8 +38,7 @@ jobs:
       - name: Run review-first uploader
         working-directory: Bull_Bear_Final_GitHub_Bot
         env:
-          # Deliberately use fresh secret names so previously configured
-          # YouTube credentials are not reused by this handoff copy.
+          # Fresh secret names prevent old YouTube credentials from being reused automatically.
           YOUTUBE_CLIENT_ID: ${{ secrets.BOT_YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.BOT_YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.BOT_YOUTUBE_REFRESH_TOKEN }}
@@ -49,7 +48,7 @@ jobs:
           I_HAVE_RIGHTS_TO_REPOST: ${{ vars.I_HAVE_RIGHTS_TO_REPOST || 'false' }}
           MANUAL_APPROVAL_REQUIRED: "true"
 
-          CHANNEL_BRAND: ${{ vars.CHANNEL_BRAND || 'Trading Education Channel' }}
+          CHANNEL_BRAND: ${{ vars.CHANNEL_BRAND || 'Market Vision Pro' }}
           YOUTUBE_PRIVACY: "private"
           MADE_FOR_KIDS: "false"
           CONTAINS_SYNTHETIC_MEDIA: "false"
@@ -72,6 +71,6 @@ jobs:
             exit 0
           fi
 
-          git commit -m "Update review queue and upload history"
+          git commit -m "Update Market Vision Pro review queue and upload history"
           git pull --rebase origin main
           git push origin main
