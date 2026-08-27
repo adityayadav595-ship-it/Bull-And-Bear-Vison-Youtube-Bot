@@ -9,8 +9,6 @@ STOPWORDS = {
     "video", "short", "shorts", "trading", "quotex"
 }
 
-# Keep metadata intentionally conservative. Avoid hype, guaranteed-result language,
-# aggressive CTAs, keyword stuffing, and repetitive clickbait patterns.
 TOPICS = [
     ("rsi", "RSI", "#RSI"),
     ("macd", "MACD", "#MACD"),
@@ -30,12 +28,15 @@ SAFE_TITLE_TEMPLATES = [
     "{topic} Explained | Trading Education #Shorts",
     "Understanding {topic} | Trading Education #Shorts",
     "{topic}: A Quick Trading Lesson #Shorts",
+    "Learning {topic} | Trading Basics #Shorts",
+    "{topic} in Under a Minute | #Shorts",
 ]
 
 GENERIC_TITLES = [
     "Trading Chart Concept Explained | #Shorts",
     "A Quick Trading Education Lesson | #Shorts",
     "Understanding a Trading Setup | #Shorts",
+    "Trading Basics: Reading the Chart | #Shorts",
 ]
 
 CORE_TAGS = [
@@ -49,25 +50,65 @@ CORE_TAGS = [
     "bull and bear vision",
 ]
 
-UNSAFE_PHRASES = [
+# Metadata phrases that are commonly associated with get-rich-quick claims,
+# deceptive investment promotion, fake engagement or off-platform funneling.
+RISK_PATTERNS = [
     r"\b100\s*%\b",
     r"\bguaranteed?\b",
     r"\bsure\s*shot\b",
+    r"\brisk[ -]?free\b",
     r"\bno\s*risk\b",
     r"\beasy\s*money\b",
     r"\binstant\s*profit\b",
-    r"\bguaranteed\s*profit\b",
+    r"\bdaily\s*profit\b",
+    r"\bfixed\s*return\b",
+    r"\bguaranteed\s*(profit|return|income)\b",
     r"\bwin\s*rate\b",
     r"\bget\s*rich\b",
+    r"\bdouble\s*(your\s*)?money\b",
     r"\bsecret\s*strategy\b",
+    r"\bfree\s*money\b",
+    r"\bsub\s*(4|for)\s*sub\b",
+    r"\blike\s*(4|for)\s*like\b",
+    r"\bview\s*(4|for)\s*view\b",
 ]
+
+OFF_PLATFORM_TERMS = [
+    "telegram", "whatsapp", "signal group", "vip group", "dm me", "contact me",
+    "join my group", "join our group"
+]
+
+FINANCIAL_CTA_TERMS = [
+    "profit", "signals", "signal", "deposit", "bonus", "promo code", "trade", "trading"
+]
+
+
+def _raw_source_text(info) -> str:
+    return f"{info.get('title', '')} {info.get('description', '')}".strip()
+
+
+def compliance_reason(info) -> str | None:
+    """Return a human-readable reason when source metadata looks policy-risky."""
+    raw = _raw_source_text(info)
+    lower = raw.lower()
+
+    for pattern in RISK_PATTERNS:
+        if re.search(pattern, raw, flags=re.IGNORECASE):
+            return f"blocked risky claim/promotion: {pattern}"
+
+    if any(term in lower for term in OFF_PLATFORM_TERMS) and any(
+        term in lower for term in FINANCIAL_CTA_TERMS
+    ):
+        return "blocked off-platform financial promotion/funneling"
+
+    return None
 
 
 def _clean_text(value: str) -> str:
     text = re.sub(r"https?://\S+", " ", value or "")
     text = re.sub(r"[^A-Za-z0-9+#% ._-]+", " ", text)
     text = re.sub(r"\s+", " ", text).strip()
-    for pattern in UNSAFE_PHRASES:
+    for pattern in RISK_PATTERNS:
         text = re.sub(pattern, " ", text, flags=re.IGNORECASE)
     return re.sub(r"\s+", " ", text).strip()
 
@@ -86,7 +127,7 @@ def _extract_keywords(text: str, limit: int = 4) -> list[str]:
     for word in words:
         if word in STOPWORDS:
             continue
-        if any(re.search(pattern, word, flags=re.IGNORECASE) for pattern in UNSAFE_PHRASES):
+        if any(re.search(pattern, word, flags=re.IGNORECASE) for pattern in RISK_PATTERNS):
             continue
         counts[word] = counts.get(word, 0) + 1
     ranked = sorted(counts, key=lambda w: (-counts[w], -len(w), w))
@@ -94,6 +135,10 @@ def _extract_keywords(text: str, limit: int = 4) -> list[str]:
 
 
 def build_metadata(info, cfg):
+    risk = compliance_reason(info)
+    if risk:
+        raise ValueError(f"YouTube compliance gate: {risk}")
+
     source_title = _clean_text(info.get("title", ""))
     source_desc = _clean_text(info.get("description", ""))
     source_text = f"{source_title} {source_desc}".strip()
@@ -105,7 +150,7 @@ def build_metadata(info, cfg):
     else:
         title = random.choice(SAFE_TITLE_TEMPLATES).format(topic=topic)
 
-    # Small, relevant tag set only. No keyword stuffing.
+    # Small, relevant tag set only; no keyword stuffing.
     dynamic_keywords = _extract_keywords(source_text)
     tags: list[str] = []
     for tag in [topic.lower()] + CORE_TAGS + dynamic_keywords:
