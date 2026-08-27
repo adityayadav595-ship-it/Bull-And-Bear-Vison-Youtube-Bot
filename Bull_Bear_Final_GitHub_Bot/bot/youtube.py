@@ -1,8 +1,11 @@
+import random
 import re
+import time
 import unicodedata
 
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
 
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
@@ -17,6 +20,9 @@ BLOCKED_PROMO_PATTERNS = [
     r"\bguaranteed\s*profit\b",
     r"\bget\s*rich\b",
 ]
+
+RETRYABLE_HTTP_STATUS = {429, 500, 502, 503, 504}
+MAX_UPLOAD_RETRIES = 5
 
 
 def get_youtube(cfg):
@@ -43,7 +49,6 @@ def _remove_blocked_promo(value: str) -> str:
 
 def _safe_title(value):
     title = unicodedata.normalize("NFKC", _remove_blocked_promo(value))
-    # Strip control/invisible characters and decorative symbol characters.
     title = "".join(ch for ch in title if unicodedata.category(ch)[0] not in {"C", "S"})
     title = re.sub(r"\s+", " ", title).strip()
     if not title:
@@ -62,6 +67,10 @@ def _safe_description(value):
             "Trading involves risk. #Shorts #TradingEducation"
         )
     return description[:2000]
+
+
+def _retry_delay(attempt: int) -> float:
+    return min(30.0, (2 ** attempt) + random.uniform(0.5, 1.5))
 
 
 def upload_video(youtube, file_path, meta, cfg):
@@ -95,9 +104,22 @@ def upload_video(youtube, file_path, meta, cfg):
 
     media = MediaFileUpload(file_path, chunksize=8 * 1024 * 1024, resumable=True)
     req = youtube.videos().insert(part="snippet,status", body=body, media_body=media)
+
     response = None
+    retries = 0
     while response is None:
-        status, response = req.next_chunk()
-        if status:
-            print(f"Upload progress: {int(status.progress() * 100)}%")
+        try:
+            status, response = req.next_chunk()
+            retries = 0
+            if status:
+                print(f"Upload progress: {int(status.progress() * 100)}%")
+        except HttpError as exc:
+            http_status = getattr(exc.resp, "status", None)
+            if http_status not in RETRYABLE_HTTP_STATUS or retries >= MAX_UPLOAD_RETRIES:
+                raise
+            retries += 1
+            delay = _retry_delay(retries)
+            print(f"Temporary YouTube API error {http_status}; retrying in {delay:.1f}s...")
+            time.sleep(delay)
+
     return response["id"]
