@@ -12,7 +12,7 @@ from bot.downloader import (
 )
 from bot.history import load_history, append_history
 from bot.ranker import choose_random
-from bot.metadata import build_metadata
+from bot.metadata import build_metadata, compliance_reason
 from bot.youtube import get_youtube, upload_video
 
 CFG = load_config()
@@ -45,10 +45,15 @@ def collect_candidates():
                 print("Already uploaded, skipping:", item["url"])
                 continue
 
+            risk = compliance_reason(item)
+            if risk:
+                print("Policy-risky candidate skipped:", risk, item["url"])
+                continue
+
             item["_history_key"] = key
             candidates.append(item)
 
-    print("Total unseen video candidates:", len(candidates))
+    print("Total unseen policy-safe video candidates:", len(candidates))
     return candidates
 
 
@@ -58,7 +63,7 @@ def main():
 
     candidates = collect_candidates()
     if not candidates:
-        print("No new usable Pinterest video found this cycle.")
+        print("No new usable policy-safe Pinterest video found this cycle.")
         return
 
     picked = choose_random(candidates, pool_size=8)
@@ -71,6 +76,13 @@ def main():
         print("Downloading video...")
         file_path, full_info = download_candidate(picked, CFG)
         print("Downloaded:", file_path)
+
+        # Full metadata can contain more information than the discovery result,
+        # so run the compliance gate again immediately before upload.
+        risk = compliance_reason(full_info)
+        if risk:
+            print("UPLOAD BLOCKED by YouTube compliance gate:", risk)
+            return
 
         print("Creating YouTube metadata...")
         meta = build_metadata(full_info, CFG)
