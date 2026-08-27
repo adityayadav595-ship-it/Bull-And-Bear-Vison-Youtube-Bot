@@ -93,7 +93,7 @@ def upload_video(youtube, file_path, meta, cfg):
     yt = cfg["youtube"]
     privacy = str(yt.get("privacy", "private")).lower().strip()
     if privacy != "private":
-        raise RuntimeError("Safety lock: automated uploads are PRIVATE-only. Publish manually in YouTube Studio after review.")
+        raise RuntimeError("Safety lock: initial automated uploads must be PRIVATE.")
 
     title = _safe_title(meta.get("title"))
     description = _safe_description(meta.get("description"))
@@ -144,3 +144,66 @@ def upload_video(youtube, file_path, meta, cfg):
             time.sleep(delay)
 
     return response["id"]
+
+
+def publish_private_video_after_delay(youtube, video_id, cfg):
+    """Keep the upload private for a configured delay, then publish only if YouTube reports it ready."""
+    yt = cfg.get("youtube", {})
+    if not bool(yt.get("auto_publish_enabled", False)):
+        print("Auto-publish disabled; video remains PRIVATE.")
+        return False
+
+    delay_minutes = max(0, int(yt.get("auto_publish_after_minutes", 10) or 10))
+    print(f"Keeping video PRIVATE for {delay_minutes} minute(s) before publish check...")
+    time.sleep(delay_minutes * 60)
+
+    response = youtube.videos().list(
+        part="status,processingDetails",
+        id=video_id,
+    ).execute()
+    items = response.get("items") or []
+    if not items:
+        print("AUTO-PUBLISH BLOCKED: uploaded video could not be re-read from YouTube.")
+        return False
+
+    item = items[0]
+    status = item.get("status") or {}
+    processing = item.get("processingDetails") or {}
+    upload_status = str(status.get("uploadStatus") or "").lower()
+    processing_status = str(processing.get("processingStatus") or "").lower()
+    failure_reason = str(processing.get("processingFailureReason") or "").strip()
+    rejection_reason = str(status.get("rejectionReason") or "").strip()
+
+    print(
+        "Pre-publish YouTube check:",
+        f"uploadStatus={upload_status or 'unknown'},",
+        f"processingStatus={processing_status or 'unknown'}",
+    )
+
+    if failure_reason or rejection_reason:
+        print(
+            "AUTO-PUBLISH BLOCKED:",
+            failure_reason or rejection_reason,
+            "Video remains PRIVATE.",
+        )
+        return False
+
+    if upload_status not in {"uploaded", "processed"}:
+        print(f"AUTO-PUBLISH BLOCKED: uploadStatus={upload_status or 'unknown'}. Video remains PRIVATE.")
+        return False
+
+    if processing_status != "succeeded":
+        print(f"AUTO-PUBLISH BLOCKED: processingStatus={processing_status or 'unknown'}. Video remains PRIVATE.")
+        return False
+
+    update_body = {
+        "id": video_id,
+        "status": {
+            "privacyStatus": "public",
+            "selfDeclaredMadeForKids": bool(yt.get("made_for_kids", False)),
+            "containsSyntheticMedia": bool(yt.get("contains_synthetic_media", False)),
+        },
+    }
+    youtube.videos().update(part="status", body=update_body).execute()
+    print("AUTO-PUBLISH SUCCESS: video is now PUBLIC.")
+    return True
