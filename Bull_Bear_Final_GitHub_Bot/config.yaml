@@ -21,11 +21,8 @@ discovery:
   max_candidate_attempts_per_run: 3
 
 safety:
-  # Keep locked while the channel termination is unresolved.
-  # Change to active only after YouTube restores the channel / confirms use is permitted.
-  channel_state: suspended
-
-  # review = discover/rank only. upload = allow a manually approved PRIVATE upload.
+  # Generic handoff defaults: channel is active, but the bot starts in review-only mode.
+  channel_state: active
   run_mode: review
   manual_approval_required: true
   approvals_file: approved_uploads.txt
