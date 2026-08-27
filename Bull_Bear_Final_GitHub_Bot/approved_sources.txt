@@ -1,5 +1,9 @@
 # APPROVED SOURCE LIST
 #
-# Restored approved Pinterest profile source.
+# Restored approved Pinterest profile source plus user-owned Pinterest share sources.
 # Only use sources whose videos you own or are licensed/authorized to repost.
 https://in.pinterest.com/quotextrader007/
+https://pin.it/6oGg5psw3
+https://pin.it/V3fpLWPOn
+https://pin.it/5zrhVJmZh
+https://pin.it/14AoDz5kG
