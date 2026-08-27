@@ -10,6 +10,7 @@ from googleapiclient.http import MediaFileUpload
 
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 
+# Remove aggressive/financial-promise language from auto-generated metadata.
 BLOCKED_PROMO_PATTERNS = [
     r"\b100\s*%\b",
     r"\bguaranteed?\b",
@@ -19,6 +20,14 @@ BLOCKED_PROMO_PATTERNS = [
     r"\binstant\s*profit\b",
     r"\bguaranteed\s*profit\b",
     r"\bget\s*rich\b",
+    r"\bdouble\s+your\s+money\b",
+    r"\brisk[-\s]*free\b",
+    r"\bwin\s*rate\b",
+    r"\b90\s*%\s*(?:win|accuracy)\b",
+    r"\b95\s*%\s*(?:win|accuracy)\b",
+    r"\b99\s*%\s*(?:win|accuracy)\b",
+    r"\bprofit\s+guarantee\b",
+    r"\bguaranteed\s+returns?\b",
 ]
 
 RETRYABLE_HTTP_STATUS = {429, 500, 502, 503, 504}
@@ -61,11 +70,18 @@ def _safe_description(value):
     description = "".join(ch for ch in description if unicodedata.category(ch)[0] != "C" or ch in "\n\t")
     description = re.sub(r"[ \t]+", " ", description)
     description = re.sub(r"\n{3,}", "\n\n", description).strip()
+
+    # Always append a short disclosure so auto-generated descriptions do not
+    # present trading outcomes as guaranteed or as personalized advice.
+    disclosure = (
+        "Educational content only. Not financial advice. Trading involves risk; "
+        "results are not guaranteed."
+    )
+    if disclosure.lower() not in description.lower():
+        description = (description + "\n\n" + disclosure).strip()
+
     if not description:
-        description = (
-            "Educational trading content only. No financial advice or guaranteed outcomes. "
-            "Trading involves risk. #Shorts #TradingEducation"
-        )
+        description = disclosure + " #Shorts #TradingEducation"
     return description[:2000]
 
 
