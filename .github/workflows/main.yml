@@ -2,17 +2,10 @@ name: Bull Bear YouTube Bot
 
 on:
   workflow_dispatch:
-    inputs:
-      approved_to_upload:
-        description: "Upload one reviewed video as PRIVATE?"
-        required: true
-        type: boolean
-        default: false
-      confirm_rights:
-        description: "I own or am licensed/authorized to repost the active source"
-        required: true
-        type: boolean
-        default: false
+  schedule:
+    # GitHub cron uses UTC. Runs every 3 hours.
+    # All bot uploads remain PRIVATE for manual review in YouTube Studio.
+    - cron: "30 */3 * * *"
 
 permissions:
   contents: write
@@ -23,7 +16,6 @@ concurrency:
 
 jobs:
   upload-one-video:
-    if: ${{ inputs.approved_to_upload == true && inputs.confirm_rights == true }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
@@ -43,7 +35,7 @@ jobs:
         working-directory: Bull_Bear_Final_GitHub_Bot
         run: pip install -r requirements.txt
 
-      - name: Run bot
+      - name: Run policy-safe private uploader
         working-directory: Bull_Bear_Final_GitHub_Bot
         env:
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
