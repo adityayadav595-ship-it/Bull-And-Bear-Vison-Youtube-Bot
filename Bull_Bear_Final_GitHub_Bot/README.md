@@ -1,6 +1,6 @@
-# YouTube Review Uploader
+# Market Vision Pro YouTube Review Uploader
 
-A channel-neutral, review-first YouTube workflow that keeps human control over every upload and reduces repetitive/spam-like publishing patterns.
+A review-first YouTube workflow for the **Market Vision Pro** channel that keeps human control over every upload and reduces repetitive/spam-like publishing patterns.
 
 ## Fresh handoff state
 
@@ -23,16 +23,16 @@ The scheduled GitHub Action can inspect sources every 3 hours. The bot starts in
 - No automated comments, likes, subscriptions, artificial views, or engagement manipulation
 - Fail-closed behavior when approvals, rights, metadata, duplicates, privacy, or configuration checks fail
 
-## Setup for the new channel owner
+## Setup for Market Vision Pro
 
 1. Add only owned/licensed exact video URLs to `approved_sources.txt`.
 2. Run the Action in review mode and inspect `review_queue.jsonl`.
 3. After reviewing a candidate, copy its exact URL or `source_key` into `approved_uploads.txt`.
-4. Add fresh GitHub Secrets for the new owner's Google/YouTube project:
+4. Add fresh GitHub Secrets for the channel owner's Google/YouTube project:
    - `BOT_YOUTUBE_CLIENT_ID`
    - `BOT_YOUTUBE_CLIENT_SECRET`
    - `BOT_YOUTUBE_REFRESH_TOKEN`
-5. Set repository variable `CHANNEL_BRAND` to the new channel name.
+5. `CHANNEL_BRAND` defaults to `Market Vision Pro`; the repository variable can override it if needed.
 6. Keep `CHANNEL_STATE=active` and change `BOT_RUN_MODE=upload` only when ready for approved PRIVATE uploads.
 7. Review each private upload in YouTube Studio before deciding whether to publish it.
 
