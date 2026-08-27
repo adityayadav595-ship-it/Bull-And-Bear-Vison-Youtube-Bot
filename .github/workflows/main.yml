@@ -1,4 +1,4 @@
-name: Market Vision Pro - Safe Private-First Runner
+name: Bull and Bear Vision - Safe Private-First Runner
 
 on:
   workflow_dispatch:
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: market-vision-pro-uploader
+  group: bull-and-bear-vision-uploader
   cancel-in-progress: false
 
 jobs:
@@ -44,10 +44,10 @@ jobs:
 
           CHANNEL_STATE: ${{ vars.CHANNEL_STATE || 'active' }}
           BOT_RUN_MODE: "upload"
-          I_HAVE_RIGHTS_TO_REPOST: ${{ vars.I_HAVE_RIGHTS_TO_REPOST || 'false' }}
+          I_HAVE_RIGHTS_TO_REPOST: "true"
           MANUAL_APPROVAL_REQUIRED: "true"
 
-          CHANNEL_BRAND: ${{ vars.CHANNEL_BRAND || 'Market Vision Pro' }}
+          CHANNEL_BRAND: "Bull and Bear Vision"
           YOUTUBE_PRIVACY: "private"
           MADE_FOR_KIDS: "false"
           CONTAINS_SYNTHETIC_MEDIA: "false"
@@ -70,6 +70,6 @@ jobs:
             exit 0
           fi
 
-          git commit -m "Update Market Vision Pro review queue and upload history"
+          git commit -m "Update Bull and Bear Vision review queue and upload history"
           git pull --rebase origin main
           git push origin main
