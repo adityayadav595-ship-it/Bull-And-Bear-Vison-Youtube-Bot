@@ -25,7 +25,7 @@ def load_config(path="config.yaml"):
     cfg["client_secret"] = os.getenv("YOUTUBE_CLIENT_SECRET", "").strip()
     cfg["refresh_token"] = os.getenv("YOUTUBE_REFRESH_TOKEN", "").strip()
     cfg["cookies_file"] = os.getenv("PINTEREST_COOKIES_FILE", "").strip() or None
-    cfg["brand"] = os.getenv("CHANNEL_BRAND", "Trading Education Channel").strip()
+    cfg["brand"] = os.getenv("CHANNEL_BRAND", "Market Vision Pro").strip()
 
     # Upload eligibility is also gated per item by approved_uploads.txt.
     cfg["rights_confirmed"] = env_bool("I_HAVE_RIGHTS_TO_REPOST", False)
