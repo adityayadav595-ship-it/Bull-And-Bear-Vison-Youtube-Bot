@@ -3,10 +3,10 @@ name: Bull Bear YouTube Bot
 on:
   workflow_dispatch:
   schedule:
-    # GitHub cron uses UTC. :30 UTC every 3 hours = 6:00, 9:00, 12:00,
-    # 15:00, 18:00, 21:00, 00:00 and 03:00 in Asia/Kolkata.
-    # Using :30 also avoids GitHub's busiest top-of-hour scheduler window.
-    - cron: "30 */3 * * *"
+    # Safer cadence: two automatic uploads per day.
+    # GitHub cron uses UTC. 06:30 UTC = 12:00 PM IST, 15:30 UTC = 9:00 PM IST.
+    # Using :30 avoids the busiest top-of-hour scheduler window.
+    - cron: "30 6,15 * * *"
 
 permissions:
   contents: write
