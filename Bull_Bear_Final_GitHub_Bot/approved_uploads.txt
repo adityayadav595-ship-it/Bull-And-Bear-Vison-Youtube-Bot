@@ -1,0 +1,11 @@
+# HUMAN APPROVAL GATE
+#
+# Add ONLY an exact candidate URL or source_key from review_queue.jsonl after you have:
+# 1) watched the content,
+# 2) confirmed you own it or have permission/license to repost it,
+# 3) confirmed the title/content is not misleading, promotional, or a profit guarantee.
+#
+# Optional notes may follow a pipe, for example:
+# https://example.com/my-video | owned original content | reviewed 2026-08-27
+#
+# While this file has no approved entries, the bot cannot upload anything.
