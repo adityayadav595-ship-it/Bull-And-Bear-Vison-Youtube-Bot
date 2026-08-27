@@ -3,9 +3,9 @@ name: Bull Bear YouTube Bot
 on:
   workflow_dispatch:
   schedule:
-    # Safer cadence for a fresh channel: one upload every 6 hours.
-    # GitHub cron uses UTC. :30 UTC every 6 hours = 6:00, 12:00, 18:00 and 00:00 in Asia/Kolkata.
-    - cron: "30 */6 * * *"
+    # GitHub cron uses UTC. :30 UTC every 3 hours = 6:00, 9:00, 12:00,
+    # 15:00, 18:00, 21:00, 00:00 and 03:00 in Asia/Kolkata.
+    - cron: "30 */3 * * *"
 
 permissions:
   contents: write
