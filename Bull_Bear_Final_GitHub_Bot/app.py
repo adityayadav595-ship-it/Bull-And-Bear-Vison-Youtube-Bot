@@ -21,7 +21,7 @@ from bot.policy_guard import (
     metadata_risk_reason,
     write_review_queue,
 )
-from bot.youtube import get_youtube, upload_video
+from bot.youtube import get_youtube, upload_video, publish_private_video_after_delay
 
 CFG = load_config()
 
@@ -116,7 +116,6 @@ def main():
         print("Nothing selected.")
         return
 
-    # Every scheduled run can prepare a review queue without touching YouTube.
     write_review_queue(ranked, CFG)
 
     allowed, reason = channel_allows_upload(CFG)
@@ -125,7 +124,6 @@ def main():
         print("Review queue generated only; no YouTube API upload was attempted.")
         return
 
-    # Upload mode is intentionally fail-closed.
     if not CFG.get("rights_confirmed"):
         print("UPLOAD LOCKED: I_HAVE_RIGHTS_TO_REPOST is not true.")
         return
@@ -195,7 +193,7 @@ def main():
                 print("Connecting to YouTube...")
                 youtube = get_youtube(CFG)
 
-            print("Uploading to YouTube as PRIVATE for manual Studio review...")
+            print("Uploading to YouTube as PRIVATE...")
             video_id = upload_video(youtube, file_path, meta, CFG)
             print("PRIVATE UPLOAD SUCCESSFUL")
             print("YouTube video ID:", video_id)
@@ -204,7 +202,10 @@ def main():
             append_history(hash_history_path, video_hash)
             append_metadata_history(meta, picked, video_id, CFG)
             print("Saved source ID, content fingerprint, and metadata history.")
-            print("Bot will NOT publish publicly; review and publish manually in YouTube Studio.")
+
+            published = publish_private_video_after_delay(youtube, video_id, CFG)
+            if not published:
+                print("Video remains PRIVATE because the delayed publish safety check did not pass.")
             return
 
         except Exception as exc:
