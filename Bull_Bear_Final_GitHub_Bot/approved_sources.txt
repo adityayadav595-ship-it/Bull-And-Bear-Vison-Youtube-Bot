@@ -1,0 +1,8 @@
+# SAFE ACTIVE SOURCE LIST
+#
+# The bot now ignores the old broad Pinterest profile/board list.
+# Add ONE exact individual Pinterest video Pin URL per line only after verifying
+# that you own the video or are licensed/authorized to repost it on YouTube.
+#
+# Do NOT add profile URLs, board URLs, invite/share-to-profile URLs, or scraped feeds.
+# Keep this file empty while the YouTube channel is under investigation/recovery.
