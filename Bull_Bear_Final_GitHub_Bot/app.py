@@ -10,7 +10,7 @@ from bot.downloader import (
     download_candidate,
     source_key,
 )
-from bot.history import load_history, append_history
+from bot.history import load_history, append_history, file_sha256
 from bot.ranker import choose_random
 from bot.metadata import build_metadata, compliance_reason
 from bot.youtube import get_youtube, upload_video
@@ -77,6 +77,16 @@ def main():
         file_path, full_info = download_candidate(picked, CFG)
         print("Downloaded:", file_path)
 
+        # Source URLs can differ even when the actual media file is identical.
+        # Fingerprint the downloaded bytes and block exact duplicate uploads.
+        hash_history_path = CFG.get("hash_history_file", "uploaded_hashes.txt")
+        uploaded_hashes = load_history(hash_history_path)
+        video_hash = file_sha256(file_path)
+        print("Video fingerprint:", video_hash[:16] + "...")
+        if video_hash in uploaded_hashes:
+            print("Exact duplicate video file detected; upload skipped.")
+            return
+
         # Full metadata can contain more information than the discovery result,
         # so run the compliance gate again immediately before upload.
         risk = compliance_reason(full_info)
@@ -100,7 +110,8 @@ def main():
             CFG.get("history_file", "uploaded_ids.txt"),
             picked["_history_key"],
         )
-        print("Saved to no-repeat upload history.")
+        append_history(hash_history_path, video_hash)
+        print("Saved source ID and content fingerprint to no-repeat history.")
 
     finally:
         if file_path and Path(file_path).exists():
