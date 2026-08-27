@@ -9,9 +9,9 @@ channel_theme:
   niche: "Quotex trading education and technical analysis"
 
 youtube:
-  privacy: private
-  auto_publish_enabled: true
-  auto_publish_after_minutes: 10
+  privacy: public
+  auto_publish_enabled: false
+  auto_publish_after_minutes: 0
   made_for_kids: false
   contains_synthetic_media: false
   language: en
@@ -32,7 +32,7 @@ discovery:
 safety:
   channel_state: active
   run_mode: upload
-  manual_approval_required: true
+  manual_approval_required: false
   approvals_file: approved_uploads.txt
   review_queue_file: review_queue.jsonl
   review_queue_size: 10
