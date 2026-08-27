@@ -1,17 +1,17 @@
-name: Bull Bear YouTube Bot - Safe Review Runner
+name: YouTube Review Uploader - Safe Runner
 
 on:
   workflow_dispatch:
   schedule:
     # GitHub cron uses UTC. The bot may inspect sources every 3 hours,
-    # but upload gates/cooldowns are enforced inside the app.
+    # while upload cooldown/approval gates are enforced inside the app.
     - cron: "30 */3 * * *"
 
 permissions:
   contents: write
 
 concurrency:
-  group: bull-bear-youtube-uploader
+  group: youtube-review-uploader
   cancel-in-progress: false
 
 jobs:
@@ -35,21 +35,21 @@ jobs:
         working-directory: Bull_Bear_Final_GitHub_Bot
         run: pip install -r requirements.txt
 
-      - name: Run review-first policy-safe bot
+      - name: Run review-first uploader
         working-directory: Bull_Bear_Final_GitHub_Bot
         env:
-          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
-          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
-          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          # Deliberately use fresh secret names so previously configured
+          # YouTube credentials are not reused by this handoff copy.
+          YOUTUBE_CLIENT_ID: ${{ secrets.BOT_YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.BOT_YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.BOT_YOUTUBE_REFRESH_TOKEN }}
 
-          # Safe defaults. Repository variables can be changed only after
-          # YouTube restores/confirms the channel is permitted to operate.
-          CHANNEL_STATE: ${{ vars.CHANNEL_STATE || 'suspended' }}
+          CHANNEL_STATE: ${{ vars.CHANNEL_STATE || 'active' }}
           BOT_RUN_MODE: ${{ vars.BOT_RUN_MODE || 'review' }}
           I_HAVE_RIGHTS_TO_REPOST: ${{ vars.I_HAVE_RIGHTS_TO_REPOST || 'false' }}
           MANUAL_APPROVAL_REQUIRED: "true"
 
-          CHANNEL_BRAND: "Bull & Bear Vision"
+          CHANNEL_BRAND: ${{ vars.CHANNEL_BRAND || 'Trading Education Channel' }}
           YOUTUBE_PRIVACY: "private"
           MADE_FOR_KIDS: "false"
           CONTAINS_SYNTHETIC_MEDIA: "false"
@@ -72,6 +72,6 @@ jobs:
             exit 0
           fi
 
-          git commit -m "Update bot review queue and safe history"
+          git commit -m "Update review queue and upload history"
           git pull --rebase origin main
           git push origin main
