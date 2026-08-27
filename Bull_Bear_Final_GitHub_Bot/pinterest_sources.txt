@@ -1,16 +1,4 @@
-# Add ONE approved Pinterest board / profile / share URL per line.
-# The bot scores candidates, skips duplicates, and randomly chooses from the best few.
-# Only add sources whose videos you own or are licensed/authorized to repost.
-https://in.pinterest.com/rimeshtigga/
-https://in.pinterest.com/quotextrader007/
-https://in.pinterest.com/winlouhxauusd/
-https://in.pinterest.com/stockhero123454/
-https://pin.it/5WPyITXpj
-https://pin.it/6L9CX4pV0
-https://pin.it/4nsFJ2gGQ
-https://pin.it/4SPl0O2JM
-https://pin.it/4DtVer9pM
-https://pin.it/6KP3eTvw1
-https://pin.it/1i5MILlr9
-https://pin.it/2b6YuxQOn
-https://pin.it/5dTkhabHg
+# LEGACY SOURCE FILE CLEARED FOR HANDOFF
+#
+# Do not reuse the previous owner's Pinterest profiles/pins.
+# The active bot reads approved_sources.txt instead.
