@@ -2,6 +2,12 @@ sources_file: approved_sources.txt
 history_file: uploaded_ids.txt
 hash_history_file: uploaded_hashes.txt
 
+brand: Market Vision Pro
+channel_theme:
+  comeback_enabled: true
+  comeback_message: "Welcome Back to Market Vision Pro"
+  niche: "Quotex trading education and technical analysis"
+
 youtube:
   privacy: private
   auto_publish_enabled: true
@@ -13,6 +19,7 @@ youtube:
 metadata:
   category_id: "27"
   max_tags: 6
+  quotex_focus: true
 
 discovery:
   exact_pin_sources_only: false
