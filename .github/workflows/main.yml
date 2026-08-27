@@ -1,10 +1,10 @@
-name: Bull Bear YouTube Bot
+name: Bull Bear YouTube Bot - Safe Review Runner
 
 on:
   workflow_dispatch:
   schedule:
-    # GitHub cron uses UTC. Runs every 3 hours.
-    # All bot uploads remain PRIVATE for manual review in YouTube Studio.
+    # GitHub cron uses UTC. The bot may inspect sources every 3 hours,
+    # but upload gates/cooldowns are enforced inside the app.
     - cron: "30 */3 * * *"
 
 permissions:
@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  upload-one-video:
+  review-or-private-upload:
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
@@ -35,30 +35,43 @@ jobs:
         working-directory: Bull_Bear_Final_GitHub_Bot
         run: pip install -r requirements.txt
 
-      - name: Run policy-safe private uploader
+      - name: Run review-first policy-safe bot
         working-directory: Bull_Bear_Final_GitHub_Bot
         env:
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
-          I_HAVE_RIGHTS_TO_REPOST: "true"
+
+          # Safe defaults. Repository variables can be changed only after
+          # YouTube restores/confirms the channel is permitted to operate.
+          CHANNEL_STATE: ${{ vars.CHANNEL_STATE || 'suspended' }}
+          BOT_RUN_MODE: ${{ vars.BOT_RUN_MODE || 'review' }}
+          I_HAVE_RIGHTS_TO_REPOST: ${{ vars.I_HAVE_RIGHTS_TO_REPOST || 'false' }}
+          MANUAL_APPROVAL_REQUIRED: "true"
+
           CHANNEL_BRAND: "Bull & Bear Vision"
           YOUTUBE_PRIVACY: "private"
           MADE_FOR_KIDS: "false"
           CONTAINS_SYNTHETIC_MEDIA: "false"
         run: python app.py
 
-      - name: Save upload history
+      - name: Save review queue and safe history
         run: |
-          if git diff --quiet -- Bull_Bear_Final_GitHub_Bot/uploaded_ids.txt Bull_Bear_Final_GitHub_Bot/uploaded_hashes.txt; then
-            echo "No history change."
-            exit 0
-          fi
-
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add Bull_Bear_Final_GitHub_Bot/uploaded_ids.txt Bull_Bear_Final_GitHub_Bot/uploaded_hashes.txt
-          git commit -m "Update uploaded video history"
+          git add \
+            Bull_Bear_Final_GitHub_Bot/review_queue.jsonl \
+            Bull_Bear_Final_GitHub_Bot/uploaded_ids.txt \
+            Bull_Bear_Final_GitHub_Bot/uploaded_hashes.txt \
+            Bull_Bear_Final_GitHub_Bot/metadata_history.jsonl \
+            2>/dev/null || true
+
+          if git diff --cached --quiet; then
+            echo "No review/history change."
+            exit 0
+          fi
+
+          git commit -m "Update bot review queue and safe history"
           git pull --rebase origin main
           git push origin main
