@@ -2,10 +2,17 @@ name: Bull Bear YouTube Bot
 
 on:
   workflow_dispatch:
-  schedule:
-    # GitHub cron uses UTC. :30 UTC every 3 hours = 6:00, 9:00, 12:00,
-    # 15:00, 18:00, 21:00, 00:00 and 03:00 in Asia/Kolkata.
-    - cron: "30 */3 * * *"
+    inputs:
+      approved_to_upload:
+        description: "Upload one reviewed video as PRIVATE?"
+        required: true
+        type: boolean
+        default: false
+      confirm_rights:
+        description: "I own or am licensed/authorized to repost the active source"
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -16,6 +23,7 @@ concurrency:
 
 jobs:
   upload-one-video:
+    if: ${{ inputs.approved_to_upload == true && inputs.confirm_rights == true }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
@@ -43,7 +51,7 @@ jobs:
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
           I_HAVE_RIGHTS_TO_REPOST: "true"
           CHANNEL_BRAND: "Bull & Bear Vision"
-          YOUTUBE_PRIVACY: "public"
+          YOUTUBE_PRIVACY: "private"
           MADE_FOR_KIDS: "false"
           CONTAINS_SYNTHETIC_MEDIA: "false"
         run: python app.py
