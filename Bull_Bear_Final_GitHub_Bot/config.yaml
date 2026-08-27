@@ -31,7 +31,7 @@ safety:
   review_queue_size: 10
 
   # Anti-repetition / anti-spam guardrails.
-  min_hours_between_uploads: 6
+  min_hours_between_uploads: 3
   metadata_history_file: metadata_history.jsonl
   metadata_similarity_threshold: 0.82
   max_hashtags: 3
