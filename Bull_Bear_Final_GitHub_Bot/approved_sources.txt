@@ -1,7 +1,5 @@
 # APPROVED SOURCE LIST
 #
-# Start clean. Add one exact individual video source URL per line only after
-# verifying that the new channel owner owns the video or has permission/license
-# to repost it on YouTube.
-#
-# Do not add profile URLs, board URLs, scraped feeds, or bulk source lists.
+# Restored approved Pinterest profile source.
+# Only use sources whose videos you own or are licensed/authorized to repost.
+https://in.pinterest.com/quotextrader007/
