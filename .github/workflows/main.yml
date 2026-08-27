@@ -3,10 +3,10 @@ name: Bull Bear YouTube Bot
 on:
   workflow_dispatch:
   schedule:
-    # Safer cadence: two automatic uploads per day.
-    # GitHub cron uses UTC. 06:30 UTC = 12:00 PM IST, 15:30 UTC = 9:00 PM IST.
-    # Using :30 avoids the busiest top-of-hour scheduler window.
-    - cron: "30 6,15 * * *"
+    # Safety-first cadence: one automatic upload per day.
+    # GitHub cron uses UTC. 15:30 UTC = 9:00 PM IST.
+    # Scheduled uploads are UNLISTED so they can be reviewed in YouTube Studio before publishing.
+    - cron: "30 15 * * *"
 
 permissions:
   contents: write
@@ -44,7 +44,9 @@ jobs:
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
           I_HAVE_RIGHTS_TO_REPOST: "true"
           CHANNEL_BRAND: "Bull & Bear Vision"
-          YOUTUBE_PRIVACY: "public"
+          # Safety mode: never auto-publish directly to the public channel.
+          # Review each upload in YouTube Studio, then publish it manually if compliant.
+          YOUTUBE_PRIVACY: "unlisted"
           MADE_FOR_KIDS: "false"
           CONTAINS_SYNTHETIC_MEDIA: "false"
         run: python app.py
