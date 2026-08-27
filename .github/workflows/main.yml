@@ -1,4 +1,4 @@
-name: Market Vision Pro - Safe Review Runner
+name: Market Vision Pro - Safe Private-First Runner
 
 on:
   workflow_dispatch:
@@ -35,16 +35,15 @@ jobs:
         working-directory: Bull_Bear_Final_GitHub_Bot
         run: pip install -r requirements.txt
 
-      - name: Run review-first uploader
+      - name: Run guarded private-first uploader
         working-directory: Bull_Bear_Final_GitHub_Bot
         env:
-          # Fresh secret names prevent old YouTube credentials from being reused automatically.
           YOUTUBE_CLIENT_ID: ${{ secrets.BOT_YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.BOT_YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.BOT_YOUTUBE_REFRESH_TOKEN }}
 
           CHANNEL_STATE: ${{ vars.CHANNEL_STATE || 'active' }}
-          BOT_RUN_MODE: ${{ vars.BOT_RUN_MODE || 'review' }}
+          BOT_RUN_MODE: "upload"
           I_HAVE_RIGHTS_TO_REPOST: ${{ vars.I_HAVE_RIGHTS_TO_REPOST || 'false' }}
           MANUAL_APPROVAL_REQUIRED: "true"
 
