@@ -1,0 +1,74 @@
+name: Bull and Bear Vision - 3 Hour Autorun
+
+on:
+  schedule:
+    # Fresh dedicated scheduler. Runs every 3 hours at :47 UTC.
+    - cron: "47 1,4,7,10,13,16,19,22 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bull-and-bear-vision-uploader
+  cancel-in-progress: false
+
+jobs:
+  scheduled-public-upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Install dependencies
+        working-directory: Bull_Bear_Final_GitHub_Bot
+        run: pip install -r requirements.txt
+
+      - name: Run scheduled public uploader
+        working-directory: Bull_Bear_Final_GitHub_Bot
+        env:
+          YOUTUBE_CLIENT_ID: ${{ secrets.BOT_YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.BOT_YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.BOT_YOUTUBE_REFRESH_TOKEN }}
+
+          CHANNEL_STATE: ${{ vars.CHANNEL_STATE || 'active' }}
+          BOT_RUN_MODE: "upload"
+          I_HAVE_RIGHTS_TO_REPOST: "true"
+          MANUAL_APPROVAL_REQUIRED: "false"
+
+          CHANNEL_BRAND: "Bull and Bear Vision"
+          YOUTUBE_PRIVACY: "public"
+          MADE_FOR_KIDS: "false"
+          CONTAINS_SYNTHETIC_MEDIA: "false"
+        run: python app.py
+
+      - name: Save upload history
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add \
+            Bull_Bear_Final_GitHub_Bot/review_queue.jsonl \
+            Bull_Bear_Final_GitHub_Bot/uploaded_ids.txt \
+            Bull_Bear_Final_GitHub_Bot/uploaded_hashes.txt \
+            Bull_Bear_Final_GitHub_Bot/metadata_history.jsonl \
+            2>/dev/null || true
+
+          if git diff --cached --quiet; then
+            echo "No upload/history change."
+            exit 0
+          fi
+
+          git commit -m "Update Bull and Bear Vision upload history"
+          git pull --rebase origin main
+          git push origin main
