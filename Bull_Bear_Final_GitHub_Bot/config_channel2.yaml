@@ -26,8 +26,8 @@ discovery:
   max_candidates_per_source: 10
   min_duration_seconds: 8
   max_duration_seconds: 60
-  smart_pool_size: 8
-  max_candidate_attempts_per_run: 3
+  smart_pool_size: 10
+  max_candidate_attempts_per_run: 8
 
 face_filter:
   enabled: true
@@ -45,5 +45,5 @@ safety:
   review_queue_size: 10
   min_hours_between_uploads: 3
   metadata_history_file: metadata_history_channel2.jsonl
-  metadata_similarity_threshold: 0.82
+  metadata_similarity_threshold: 0.95
   max_hashtags: 3
