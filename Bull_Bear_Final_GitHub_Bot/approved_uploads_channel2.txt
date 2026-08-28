@@ -1,0 +1,1 @@
+# Channel 2 manual approvals (unused while MANUAL_APPROVAL_REQUIRED=false)
