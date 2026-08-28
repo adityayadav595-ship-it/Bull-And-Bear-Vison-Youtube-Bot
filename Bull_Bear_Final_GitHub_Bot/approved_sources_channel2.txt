@@ -1,0 +1,3 @@
+# CHANNEL 2 APPROVED SOURCE LIST
+# Add only sources whose videos are owned/licensed/authorized for this channel.
+# Keep this list separate from Channel 1 so the two channels post different videos.
