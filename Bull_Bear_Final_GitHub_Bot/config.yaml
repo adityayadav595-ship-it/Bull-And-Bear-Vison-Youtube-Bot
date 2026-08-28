@@ -29,6 +29,13 @@ discovery:
   smart_pool_size: 8
   max_candidate_attempts_per_run: 3
 
+face_filter:
+  enabled: true
+  instagram_skip_any_face: true
+  sample_every_seconds: 1.0
+  max_samples: 24
+  min_face_size_px: 42
+
 safety:
   channel_state: active
   run_mode: upload
