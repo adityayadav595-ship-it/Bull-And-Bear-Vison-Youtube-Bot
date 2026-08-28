@@ -1,11 +1,7 @@
-name: Bull and Bear Vision - Direct Public Uploader
+name: Bull and Bear Vision - Manual Uploader
 
 on:
   workflow_dispatch:
-  schedule:
-    # Every 3 hours at :47 UTC on 1,4,7,10,13,16,19,22 UTC.
-    # This shifts the schedule away from the previous slot and refreshes the scheduled workflow.
-    - cron: "47 1,4,7,10,13,16,19,22 * * *"
 
 permissions:
   contents: write
