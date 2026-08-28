@@ -10,6 +10,7 @@ from bot.downloader import (
     download_candidate,
     source_key,
 )
+from bot.face_filter import video_contains_face
 from bot.history import load_history, append_history, file_sha256
 from bot.ranker import rank_candidates
 from bot.metadata import build_metadata, compliance_reason
@@ -167,6 +168,14 @@ def main():
                 print("Downloaded media failed duration gate; marking source seen.")
                 append_history(history_path, picked["_history_key"])
                 continue
+
+            if full_info.get("platform") == "instagram" and CFG.get("face_filter", {}).get("instagram_skip_any_face", True):
+                print("Checking Instagram Reel for visible faces...")
+                if video_contains_face(file_path, CFG):
+                    print("Instagram Reel skipped: a human face was detected.")
+                    append_history(history_path, picked["_history_key"])
+                    continue
+                print("Instagram face filter passed: no clear face detected.")
 
             video_hash = file_sha256(file_path)
             print("Video fingerprint:", video_hash[:16] + "...")
