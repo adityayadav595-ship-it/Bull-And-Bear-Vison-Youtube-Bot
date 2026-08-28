@@ -1,12 +1,12 @@
-sources_file: approved_sources_channel2.txt
-history_file: uploaded_ids_channel2.txt
-hash_history_file: uploaded_hashes_channel2.txt
+sources_file: approved_sources.txt
+history_file: uploaded_ids.txt
+hash_history_file: uploaded_hashes.txt
 
-brand: Channel 2
+brand: Bull & Bear Vision
 channel_theme:
   comeback_enabled: false
   comeback_message: ""
-  niche: "Trading education and technical analysis"
+  niche: "Quotex trading education and technical analysis"
 
 youtube:
   privacy: public
