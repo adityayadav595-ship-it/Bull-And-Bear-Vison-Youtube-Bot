@@ -16,6 +16,10 @@ PIN_PATTERNS = [
     re.compile(r'"pinId"\s*:\s*"?([0-9]{6,})"?', re.I),
     re.compile(r'"id"\s*:\s*"([0-9]{12,})"', re.I),
 ]
+INSTAGRAM_ITEM_PATTERNS = [
+    re.compile(r'https?://(?:www\.)?instagram\.com/(?:reel|reels|p)/([A-Za-z0-9_-]+)', re.I),
+    re.compile(r'/(?:reel|reels|p)/([A-Za-z0-9_-]+)', re.I),
+]
 
 
 def source_key(url, item_id=""):
@@ -160,35 +164,61 @@ def _probe_instagram_item(url, cfg):
     return _item_from_info(info, url, "instagram")
 
 
+def _instagram_profile_html_urls(profile_url, cfg):
+    max_items = int(cfg.get("discovery", {}).get("max_candidates_per_source", 10))
+    found, seen = [], set()
+    for mobile in (False, True):
+        try:
+            page = _fetch_profile_html(profile_url, mobile=mobile)
+        except Exception as exc:
+            print("Instagram HTML fallback fetch failed:", exc)
+            continue
+        normalized = html.unescape(page).replace("\\/", "/").replace("\\u002F", "/")
+        for pattern in INSTAGRAM_ITEM_PATTERNS:
+            for match in pattern.finditer(normalized):
+                shortcode = match.group(1)
+                url = f"https://www.instagram.com/reel/{shortcode}/"
+                if url not in seen:
+                    seen.add(url)
+                    found.append(url)
+    random.shuffle(found)
+    return found[: max_items * 2]
+
+
 def _discover_instagram_profile(profile_url, cfg):
     max_items = int(cfg.get("discovery", {}).get("max_candidates_per_source", 10))
     print("Scanning approved Instagram profile:", profile_url)
+    urls, seen = [], set()
+
     opts = _opts(cfg, False, allow_playlist=True)
     opts.update({"extract_flat": True, "playlistend": max_items * 2})
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(profile_url, download=False)
+        for entry in (info or {}).get("entries") or []:
+            if not entry:
+                continue
+            candidate_url = entry.get("webpage_url") or entry.get("url")
+            if candidate_url and candidate_url not in seen:
+                seen.add(candidate_url)
+                urls.append(candidate_url)
     except Exception as e:
-        print("Instagram profile discovery failed:", e)
-        return []
+        print("Instagram profile yt-dlp discovery failed; trying HTML fallback:", e)
 
-    entries = (info or {}).get("entries") or []
-    urls = []
-    seen = set()
-    for entry in entries:
-        if not entry:
-            continue
-        candidate_url = entry.get("webpage_url") or entry.get("url")
-        if candidate_url and candidate_url not in seen:
-            seen.add(candidate_url)
-            urls.append(candidate_url)
+    if not urls:
+        for candidate_url in _instagram_profile_html_urls(profile_url, cfg):
+            if candidate_url not in seen:
+                seen.add(candidate_url)
+                urls.append(candidate_url)
+
     random.shuffle(urls)
-
     candidates = []
     for url in urls[:max_items]:
         item = _probe_instagram_item(url, cfg)
         if item:
             candidates.append(item)
+    if not candidates:
+        print("No usable public Instagram Reel discovered from profile this cycle.")
     return candidates
 
 
