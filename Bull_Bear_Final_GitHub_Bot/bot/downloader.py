@@ -29,14 +29,25 @@ def read_sources(path):
     return [s for s in (x.strip() for x in p.read_text(encoding="utf-8").splitlines()) if s and not s.startswith("#")]
 
 
-def _opts(cfg, download=False):
-    # Never expand playlists/feeds. Safe mode works with individual approved videos only.
-    opts = {"quiet": True, "no_warnings": True, "ignoreerrors": True, "noplaylist": True, "socket_timeout": 25}
+def _opts(cfg, download=False, allow_playlist=False):
+    opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "ignoreerrors": True,
+        "noplaylist": not allow_playlist,
+        "socket_timeout": 25,
+    }
     if cfg.get("cookies_file"):
         opts["cookiefile"] = cfg["cookies_file"]
     if download:
-        d = Path(cfg.get("downloads_dir", "downloads")); d.mkdir(parents=True, exist_ok=True)
-        opts.update({"format": "bv*+ba/b", "merge_output_format": "mp4", "outtmpl": str(d / "%(extractor)s-%(id)s.%(ext)s"), "restrictfilenames": True})
+        d = Path(cfg.get("downloads_dir", "downloads"))
+        d.mkdir(parents=True, exist_ok=True)
+        opts.update({
+            "format": "bv*+ba/b",
+            "merge_output_format": "mp4",
+            "outtmpl": str(d / "%(extractor)s-%(id)s.%(ext)s"),
+            "restrictfilenames": True,
+        })
     return opts
 
 
@@ -56,6 +67,14 @@ def _resolve_short_url(url):
 
 def _is_pin(url):
     return bool(re.search(r"https?://(?:www\.|in\.)?pinterest\.com/pin/[0-9]{6,}(?:/|\?|$)", url, re.I))
+
+
+def _is_instagram(url):
+    return bool(re.search(r"https?://(?:www\.)?instagram\.com/", url, re.I))
+
+
+def _is_instagram_item(url):
+    return bool(re.search(r"https?://(?:www\.)?instagram\.com/(?:reel|reels|p)/[^/?#]+", url, re.I))
 
 
 def _fetch_profile_html(url, mobile=False):
@@ -90,8 +109,7 @@ def _get_profile_pin_urls(profile_url, cfg):
             except Exception as e:
                 print("Profile page fetch failed:", url, e)
                 continue
-            found = _extract_pin_ids(page)
-            for pin_id in found:
+            for pin_id in _extract_pin_ids(page):
                 if pin_id not in seen:
                     seen.add(pin_id)
                     pin_ids.append(pin_id)
@@ -101,22 +119,16 @@ def _get_profile_pin_urls(profile_url, cfg):
     return [f"https://www.pinterest.com/pin/{pin_id}/" for pin_id in pin_ids[:max_items]]
 
 
-def _probe_pin(pin_url, cfg):
-    try:
-        with yt_dlp.YoutubeDL(_opts(cfg, False)) as ydl:
-            info = ydl.extract_info(pin_url, download=False)
-    except Exception as e:
-        print("Skipping non-video/unavailable pin:", pin_url, e)
-        return None
+def _item_from_info(info, fallback_url, platform):
     if not info:
         return None
     ext = (info.get("ext") or "").lower()
     formats = info.get("formats") or []
     has_video = ext in VIDEO_EXTS or any((f.get("vcodec") not in (None, "none")) for f in formats)
-    if not has_video:
+    if not has_video and info.get("_type") not in ("url", "url_transparent"):
         return None
     return {
-        "url": info.get("webpage_url") or pin_url,
+        "url": info.get("webpage_url") or info.get("url") or fallback_url,
         "id": str(info.get("id") or ""),
         "title": (info.get("title") or info.get("description") or "Trading Short").strip(),
         "description": (info.get("description") or "").strip(),
@@ -124,16 +136,73 @@ def _probe_pin(pin_url, cfg):
         "timestamp": info.get("timestamp") or info.get("release_timestamp") or 0,
         "view_count": info.get("view_count") or 0,
         "like_count": info.get("like_count") or 0,
+        "platform": platform,
     }
+
+
+def _probe_pin(pin_url, cfg):
+    try:
+        with yt_dlp.YoutubeDL(_opts(cfg, False)) as ydl:
+            info = ydl.extract_info(pin_url, download=False)
+    except Exception as e:
+        print("Skipping non-video/unavailable pin:", pin_url, e)
+        return None
+    return _item_from_info(info, pin_url, "pinterest")
+
+
+def _probe_instagram_item(url, cfg):
+    try:
+        with yt_dlp.YoutubeDL(_opts(cfg, False)) as ydl:
+            info = ydl.extract_info(url, download=False)
+    except Exception as e:
+        print("Skipping unavailable Instagram Reel/Post:", url, e)
+        return None
+    return _item_from_info(info, url, "instagram")
+
+
+def _discover_instagram_profile(profile_url, cfg):
+    max_items = int(cfg.get("discovery", {}).get("max_candidates_per_source", 10))
+    print("Scanning approved Instagram profile:", profile_url)
+    opts = _opts(cfg, False, allow_playlist=True)
+    opts.update({"extract_flat": True, "playlistend": max_items * 2})
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(profile_url, download=False)
+    except Exception as e:
+        print("Instagram profile discovery failed:", e)
+        return []
+
+    entries = (info or {}).get("entries") or []
+    urls = []
+    seen = set()
+    for entry in entries:
+        if not entry:
+            continue
+        candidate_url = entry.get("webpage_url") or entry.get("url")
+        if candidate_url and candidate_url not in seen:
+            seen.add(candidate_url)
+            urls.append(candidate_url)
+    random.shuffle(urls)
+
+    candidates = []
+    for url in urls[:max_items]:
+        item = _probe_instagram_item(url, cfg)
+        if item:
+            candidates.append(item)
+    return candidates
 
 
 def discover_from_source(source_url, cfg):
     source_url = _resolve_short_url(source_url)
 
-    # Safe mode: approved_sources.txt may contain only exact individual Pin URLs.
-    # Profile/board/feed expansion is refused so the bot cannot scrape a creator feed.
+    if _is_instagram(source_url):
+        if _is_instagram_item(source_url):
+            item = _probe_instagram_item(source_url, cfg)
+            return [item] if item else []
+        return _discover_instagram_profile(source_url, cfg)
+
     if cfg.get("discovery", {}).get("exact_pin_sources_only", True) and not _is_pin(source_url):
-        print("Rejected non-individual Pinterest source in safe mode:", source_url)
+        print("Rejected unsupported/non-individual source:", source_url)
         return []
 
     if _is_pin(source_url):
@@ -153,7 +222,7 @@ def download_candidate(item, cfg):
     with yt_dlp.YoutubeDL(_opts(cfg, True)) as ydl:
         info = ydl.extract_info(item["url"], download=True)
         if not info:
-            raise RuntimeError("Could not download Pinterest video.")
+            raise RuntimeError("Could not download source video.")
         p = Path(ydl.prepare_filename(info))
         if not p.exists():
             stem = p.with_suffix("")
@@ -169,5 +238,6 @@ def download_candidate(item, cfg):
             "duration": info.get("duration") or item.get("duration"),
             "view_count": info.get("view_count") or item.get("view_count") or 0,
             "like_count": info.get("like_count") or item.get("like_count") or 0,
+            "platform": item.get("platform") or ("instagram" if _is_instagram(item["url"]) else "pinterest"),
         }
         return str(p), meta
