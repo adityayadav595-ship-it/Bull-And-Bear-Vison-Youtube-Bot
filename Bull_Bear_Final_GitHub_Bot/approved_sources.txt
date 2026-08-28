@@ -1,6 +1,6 @@
 # APPROVED SOURCE LIST
 #
-# Restored approved Pinterest profile source plus user-owned Pinterest share sources.
+# Approved Pinterest and Instagram sources provided by the user.
 # Only use sources whose videos you own or are licensed/authorized to repost.
 https://in.pinterest.com/quotextrader007/
 https://pin.it/6oGg5psw3
@@ -9,3 +9,11 @@ https://pin.it/5zrhVJmZh
 https://pin.it/14AoDz5kG
 https://pin.it/2b6YuxQOn
 https://pin.it/5dTkhabHg
+
+# Instagram profiles
+https://www.instagram.com/rimesh0001/
+https://www.instagram.com/zetabinarytrading/
+https://www.instagram.com/dev_trading_room/
+https://www.instagram.com/tradewithprashant01/
+https://www.instagram.com/shubhamtrading009/
+https://www.instagram.com/vickyyadav0310/
