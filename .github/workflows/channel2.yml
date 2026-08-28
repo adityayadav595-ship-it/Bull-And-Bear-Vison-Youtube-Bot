@@ -41,7 +41,7 @@ jobs:
           YOUTUBE_CLIENT_ID: ${{ secrets.YT2_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YT2_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YT2_REFRESH_TOKEN }}
-          CHANNEL_BRAND: ${{ vars.CHANNEL2_BRAND || 'Channel 2' }}
+          CHANNEL_BRAND: "Bull & Bear Vision"
           CHANNEL_STATE: "active"
           BOT_RUN_MODE: "upload"
           I_HAVE_RIGHTS_TO_REPOST: "true"
@@ -56,10 +56,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+          # uploaded_ids.txt and uploaded_hashes.txt are deliberately shared
+          # with Channel 1 so the same source/video cannot be posted to both channels.
           git add \
             Bull_Bear_Final_GitHub_Bot/review_queue_channel2.jsonl \
-            Bull_Bear_Final_GitHub_Bot/uploaded_ids_channel2.txt \
-            Bull_Bear_Final_GitHub_Bot/uploaded_hashes_channel2.txt \
+            Bull_Bear_Final_GitHub_Bot/uploaded_ids.txt \
+            Bull_Bear_Final_GitHub_Bot/uploaded_hashes.txt \
             Bull_Bear_Final_GitHub_Bot/metadata_history_channel2.jsonl \
             2>/dev/null || true
 
@@ -68,6 +70,6 @@ jobs:
             exit 0
           fi
 
-          git commit -m "Update Channel 2 upload history"
+          git commit -m "Update Channel 2 and shared duplicate history"
           git pull --rebase origin main
           git push origin main
