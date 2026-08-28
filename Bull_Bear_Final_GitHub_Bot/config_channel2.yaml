@@ -1,0 +1,49 @@
+sources_file: approved_sources_channel2.txt
+history_file: uploaded_ids_channel2.txt
+hash_history_file: uploaded_hashes_channel2.txt
+
+brand: Channel 2
+channel_theme:
+  comeback_enabled: false
+  comeback_message: ""
+  niche: "Trading education and technical analysis"
+
+youtube:
+  privacy: public
+  auto_publish_enabled: false
+  auto_publish_after_minutes: 0
+  made_for_kids: false
+  contains_synthetic_media: false
+  language: en
+
+metadata:
+  category_id: "27"
+  max_tags: 6
+  quotex_focus: true
+
+discovery:
+  exact_pin_sources_only: false
+  max_candidates_per_source: 10
+  min_duration_seconds: 8
+  max_duration_seconds: 60
+  smart_pool_size: 8
+  max_candidate_attempts_per_run: 3
+
+face_filter:
+  enabled: true
+  instagram_skip_any_face: true
+  sample_every_seconds: 1.0
+  max_samples: 24
+  min_face_size_px: 42
+
+safety:
+  channel_state: active
+  run_mode: upload
+  manual_approval_required: false
+  approvals_file: approved_uploads_channel2.txt
+  review_queue_file: review_queue_channel2.jsonl
+  review_queue_size: 10
+  min_hours_between_uploads: 3
+  metadata_history_file: metadata_history_channel2.jsonl
+  metadata_similarity_threshold: 0.82
+  max_hashtags: 3
