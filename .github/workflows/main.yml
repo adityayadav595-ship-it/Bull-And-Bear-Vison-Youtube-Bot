@@ -3,8 +3,8 @@ name: Bull and Bear Vision - Direct Public Uploader
 on:
   workflow_dispatch:
   schedule:
-    # GitHub cron uses UTC. Run every 3 hours; in-app cooldown and duplicate guards still apply.
-    - cron: "30 */3 * * *"
+    # Scheduler refresh: every 3 hours at minute 15 UTC. In-app cooldown and duplicate guards still apply.
+    - cron: "15 */3 * * *"
 
 permissions:
   contents: write
