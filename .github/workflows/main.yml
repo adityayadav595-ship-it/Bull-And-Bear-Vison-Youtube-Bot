@@ -3,8 +3,9 @@ name: Bull and Bear Vision - Dual Channel Autorun
 on:
   workflow_dispatch:
   schedule:
-    # One scheduler for both channels. Every 3 hours at :47 UTC.
-    - cron: "47 1,4,7,10,13,16,19,22 * * *"
+    # One scheduler for both channels. Every 3 hours at :17 UTC.
+    # Using */3 keeps the schedule simple and reliable on the default branch.
+    - cron: "17 */3 * * *"
 
 permissions:
   contents: write
