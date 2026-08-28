@@ -3,8 +3,9 @@ name: Bull and Bear Vision - Direct Public Uploader
 on:
   workflow_dispatch:
   schedule:
-    # Scheduler refresh: every 3 hours at minute 15 UTC. In-app cooldown and duplicate guards still apply.
-    - cron: "15 */3 * * *"
+    # Every 3 hours at :47 UTC on 1,4,7,10,13,16,19,22 UTC.
+    # This shifts the schedule away from the previous slot and refreshes the scheduled workflow.
+    - cron: "47 1,4,7,10,13,16,19,22 * * *"
 
 permissions:
   contents: write
