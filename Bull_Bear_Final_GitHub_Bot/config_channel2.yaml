@@ -29,8 +29,9 @@ discovery:
   smart_pool_size: 12
   max_candidate_attempts_per_run: 8
   preferred_sources:
+    - "https://pin.it/rxHOVaU4l"
     - "https://pin.it/1QaYata5p"
-  preferred_source_bonus: 8.0
+  preferred_source_bonus: 14.0
 
 face_filter:
   enabled: true
