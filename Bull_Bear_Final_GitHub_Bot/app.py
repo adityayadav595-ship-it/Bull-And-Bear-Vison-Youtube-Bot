@@ -10,6 +10,7 @@ from bot.face_filter import video_contains_face
 from bot.history import load_history, append_history, file_sha256
 from bot.ranker import rank_candidates
 from bot.metadata import build_metadata
+from bot.visual_context import extract_visual_context
 from bot.policy_guard import append_metadata_history, channel_allows_upload, cooldown_reason, item_is_manually_approved, metadata_risk_reason, write_review_queue
 from bot.youtube import get_youtube, upload_video, publish_private_video_after_delay
 
@@ -36,12 +37,17 @@ def _preferred_source(source: str) -> bool:
     return source.strip().rstrip("/") in {str(x).strip().rstrip("/") for x in preferred}
 
 
-def _metadata_input(info: dict) -> dict:
-    # Source captions are discovery context only. Never republish promotional/
-    # guarantee wording from them; generate neutral Quotex-focused metadata.
+def _metadata_input(info: dict, visual_context: str = "") -> dict:
+    # Generate metadata from the actual video's visible context rather than
+    # copying source-platform promotional captions.
     clean = dict(info)
-    clean["title"] = "Quotex trading setup"
-    clean["description"] = "Quotex trading setup and technical analysis example"
+    if visual_context.strip():
+        clean["title"] = visual_context[:450]
+        clean["description"] = visual_context[:900]
+        clean["visual_context"] = visual_context[:900]
+    else:
+        clean["title"] = "Quotex trading setup"
+        clean["description"] = "Quotex trading setup and technical analysis example"
     return clean
 
 
@@ -109,7 +115,8 @@ def main():
                 if video_contains_face(file_path, CFG): append_history(history_path, picked["_history_key"]); continue
             video_hash = file_sha256(file_path)
             if video_hash in uploaded_hashes: append_history(history_path, picked["_history_key"]); continue
-            meta = build_metadata(_metadata_input(full_info), CFG)
+            visual_context = extract_visual_context(file_path)
+            meta = build_metadata(_metadata_input(full_info, visual_context), CFG)
             meta_risk = metadata_risk_reason(meta, CFG)
             if meta_risk:
                 print("UPLOAD BLOCKED by generated-metadata guard:", meta_risk); continue
