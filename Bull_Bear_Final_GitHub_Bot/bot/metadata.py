@@ -7,9 +7,9 @@ STOPWORDS={"the","and","for","with","this","that","your","from","into","how","wh
 SOURCE_PLATFORM_RE=re.compile(r"\b(?:pinterest(?:\s+(?:video|pin|reel))?|pin\.it|source\s+video|downloaded\s+video)\b",re.I)
 TOPICS=[
 ("aroon","Aroon Indicator","#AroonIndicator","Aroon indicator"),("rsi","RSI","#RSI","RSI indicator"),("relative strength index","RSI","#RSI","RSI indicator"),("macd","MACD","#MACD","MACD indicator"),("ema","EMA","#EMA","EMA strategy"),("moving average","Moving Average","#MovingAverage","moving average"),("bollinger","Bollinger Bands","#BollingerBands","Bollinger Bands"),("support","Support & Resistance","#PriceAction","support and resistance"),("resistance","Support & Resistance","#PriceAction","support and resistance"),("breakout","Breakout","#PriceAction","breakout setup"),("candlestick","Candlestick","#Candlestick","candlestick pattern"),("candle pattern","Candlestick","#Candlestick","candlestick pattern"),("price action","Price Action","#PriceAction","price action"),("trendline","Trendline","#TechnicalAnalysis","trendline setup"),("risk reward","Risk vs Reward","#RiskManagement","risk reward"),("risk","Risk Management","#RiskManagement","risk management"),("psychology","Trading Psychology","#TradingPsychology","trading psychology"),("mindset","Trader Mindset","#TradingPsychology","trader mindset"),("patience","Trading Patience","#TradingPsychology","trading patience"),("discipline","Trading Discipline","#TradingPsychology","trading discipline"),("profit","Trading Results","#Trading","trading results")]
-CORE_TAGS=["trading education","technical analysis","trading for beginners","chart analysis","price action","risk management"]
-# Profit/result content is allowed. Block only certainty, guaranteed returns, no-risk claims,
-# engagement manipulation, or explicit promotional/funneling language.
+CORE_TAGS=["quotex","quotex trading","quotex strategy","trading strategy","technical analysis","trading education"]
+TOPIC_TAGS={
+"Aroon Indicator":["aroon indicator","quotex indicator"],"RSI":["rsi strategy","rsi indicator"],"MACD":["macd strategy","macd indicator"],"EMA":["ema strategy","ema indicator"],"Moving Average":["moving average strategy"],"Bollinger Bands":["bollinger bands strategy"],"Support & Resistance":["support and resistance","price action trading"],"Breakout":["breakout strategy","price action trading"],"Candlestick":["candlestick patterns","candlestick trading"],"Price Action":["price action trading","price action strategy"],"Trendline":["trendline strategy"],"Risk vs Reward":["risk reward trading"],"Risk Management":["trading risk management"],"Trading Psychology":["trading psychology"],"Trader Mindset":["trader mindset"],"Trading Patience":["trading psychology"],"Trading Discipline":["trading discipline"],"Trading Results":["trading results"],"Trading Setup":["trading setup","quotex setup"]}
 RISK_PATTERNS=[r"\b100\s*%\s*(?:guaranteed|sure|win(?:ning)?|profit|returns?)\b",r"\bguaranteed?\s+(?:profit|return|income|winning|win)\b",r"\b(?:profit|return|income)\s+guarantee(?:d)?\b",r"\bsure\s*shot\b",r"\brisk[ -]?free\b",r"\bno\s*risk\b",r"\beasy\s*money\b",r"\binstant\s+guaranteed\s+profit\b",r"\bfixed\s*return\b",r"\bget\s*rich\s*quick\b",r"\bdouble\s*(?:your\s*)?money\b",r"\bfree\s*money\b",r"\bvip\s*signals?\b",r"\bpromo\s*code\b",r"\bdeposit\s*bonus\b",r"\bsub\s*(4|for)\s*sub\b",r"\blike\s*(4|for)\s*like\b",r"\bview\s*(4|for)\s*view\b"]
 OFF_PLATFORM_TERMS=["telegram","whatsapp","signal group","vip group","dm me","contact me","join my group","join our group"]
 FINANCIAL_CTA_TERMS=["profit","signals","signal","deposit","bonus","promo code","trade","trading"]
@@ -48,22 +48,23 @@ def _title(source_title,topic,phrase,unique_seed):
         candidate=f"{context} | {topic}"
         if len(candidate)<=78:title=candidate
     title=SOURCE_PLATFORM_RE.sub(" ",title);title=re.sub(r"\s+"," ",title).strip(" -|:,. ")
-    # Final title sanitation: never publish guaranteed/no-risk language even if source text contains it.
     for pattern in RISK_PATTERNS:title=re.sub(pattern,"",title,flags=re.I)
     return re.sub(r"\s+"," ",title).strip(" -|:,. ")[:88]
 def _description(topic,phrase,brand,hashtags,seed):
     intros=[f"Watch this {phrase} example and focus on what happens in the setup.",f"A short {topic.lower()} example from a trading clip.",f"Watch this {phrase} moment and study the setup for yourself.",f"A quick {topic.lower()} clip for traders interested in markets and chart setups."]
     intro=_variant(seed+"|desc",intros)
-    return SOURCE_PLATFORM_RE.sub(" ",f"{intro}\n\n{brand} shares trading and market-related short videos.\n\nEducational content only — not financial advice. Trading involves risk and results are never guaranteed.\n\n"+" ".join(hashtags[:3]))[:2000]
+    seo_line=f"Topics: Quotex trading, Quotex strategy, {phrase}, technical analysis and trading education."
+    return SOURCE_PLATFORM_RE.sub(" ",f"{intro}\n\n{seo_line}\n\n{brand} shares trading and market-related short videos.\n\nEducational content only — not financial advice. Trading involves risk and results are never guaranteed.\n\n"+" ".join(hashtags[:3]))[:2000]
 def build_metadata(info,cfg):
     risk=compliance_reason(info)
     if risk:raise ValueError(f"YouTube compliance gate: {risk}")
     source_title=_clean_text(info.get("title",""));source_desc=_clean_text(info.get("description",""));source_text=f"{source_title} {source_desc}".strip();brand=cfg.get("brand","Trading Education Channel");topic,topic_hashtag,phrase=_detect_topic(source_text)
     unique_seed="|".join([str(info.get("id") or ""),str(info.get("url") or ""),source_text,topic]);title=_title(source_title,topic,phrase,unique_seed);dynamic=_extract_keywords(source_text);tags=[]
-    for tag in [phrase,topic.lower(),*dynamic,*CORE_TAGS]:
+    topic_tags=TOPIC_TAGS.get(topic,[])
+    for tag in [phrase,*topic_tags,*dynamic,*CORE_TAGS]:
         tag=_clean_text(tag).lower()
         if tag and tag not in tags:tags.append(tag)
-    tags=tags[:int(cfg.get("metadata",{}).get("max_tags",6))];hashtags=["#Shorts",topic_hashtag,"#Trading"]
+    tags=tags[:int(cfg.get("metadata",{}).get("max_tags",6))];hashtags=["#Shorts",topic_hashtag,"#Quotex"]
     description=_description(topic,phrase,brand,hashtags,unique_seed)
-    print("SEO topic:",topic);print("SEO title:",title);print("SEO hashtags:"," ".join(hashtags))
+    print("SEO topic:",topic);print("SEO title:",title);print("SEO tags:",", ".join(tags));print("SEO hashtags:"," ".join(hashtags))
     return {"title":title,"description":description,"tags":tags,"category_id":str(cfg.get("metadata",{}).get("category_id","27"))}
