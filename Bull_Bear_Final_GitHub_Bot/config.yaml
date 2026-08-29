@@ -23,10 +23,10 @@ metadata:
 
 discovery:
   exact_pin_sources_only: false
-  max_candidates_per_source: 10
+  max_candidates_per_source: 20
   min_duration_seconds: 8
   max_duration_seconds: 60
-  smart_pool_size: 10
+  smart_pool_size: 12
   max_candidate_attempts_per_run: 8
   preferred_sources:
     - "https://pin.it/1QaYata5p"
