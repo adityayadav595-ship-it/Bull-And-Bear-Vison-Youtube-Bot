@@ -27,6 +27,15 @@ metadata:
   prefer_context_hashtags: true
   avoid_keyword_stuffing: true
   recent_title_memory: 50
+  audience_keywords:
+    - "quotex"
+    - "quotex trading"
+    - "quotex strategy"
+    - "quotex trading strategy"
+    - "quotex technical analysis"
+  audience_hashtags:
+    - "#Quotex"
+    - "#QuotexTrading"
 
 discovery:
   exact_pin_sources_only: false
