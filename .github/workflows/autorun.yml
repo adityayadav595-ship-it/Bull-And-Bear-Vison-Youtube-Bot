@@ -3,6 +3,7 @@ name: Bull & Bear Vision - Autorun
 on:
   workflow_dispatch:
   schedule:
+    # Refreshed scheduler registration: every 2 hours at :23 UTC.
     - cron: "23 0,2,4,6,8,10,12,14,16,18,20,22 * * *"
 
 permissions:
