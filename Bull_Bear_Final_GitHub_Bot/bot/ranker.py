@@ -4,25 +4,27 @@ import re
 import time
 
 RELEVANCE_TERMS = {
-    "rsi": 4.0, "macd": 4.0, "ema": 3.5, "bollinger": 4.0,
-    "support": 3.0, "resistance": 3.0, "breakout": 3.0,
-    "candlestick": 3.5, "price action": 4.0, "risk management": 5.0,
-    "psychology": 3.0, "market structure": 4.5, "trendline": 3.0,
-    "trend": 2.0, "liquidity": 4.0, "entry": 1.5, "stop loss": 3.0,
+    "indicator": 5.0, "setup": 4.0, "rsi": 5.0, "macd": 5.0, "ema": 4.5,
+    "moving average": 4.0, "bollinger": 5.0, "support": 3.5, "resistance": 3.5,
+    "breakout": 3.5, "candlestick": 4.5, "price action": 5.0, "risk management": 5.0,
+    "psychology": 3.0, "market structure": 4.5, "trendline": 3.5, "trend": 2.0,
+    "liquidity": 4.0, "entry": 2.0, "stop loss": 3.0, "aroon": 5.0,
 }
 LOW_QUALITY_TERMS = (
-    "guaranteed", "100%", "sure shot", "easy money", "instant profit",
-    "daily profit", "withdrawal proof", "profit proof", "vip signal",
+    "guaranteed", "100%", "sure shot", "easy money", "instant guaranteed profit",
+    "guaranteed profit", "fixed return", "risk-free", "no risk", "vip signal",
     "promo code", "deposit bonus", "free signal", "join telegram",
 )
 GENERIC_TITLE_RE = re.compile(r"^(?:pinterest\s+video(?:\s*#?\d+)?|trading\s+short|viral\s+video|status|reel|video)$", re.I)
 TOPIC_RULES = [
+    ("indicator", ("indicator", "aroon")),
     ("rsi", ("rsi", "relative strength index")), ("macd", ("macd", "moving average convergence")),
     ("bollinger", ("bollinger",)), ("support-resistance", ("support", "resistance")),
     ("candlestick", ("candlestick", "candle pattern")), ("price-action", ("price action",)),
     ("market-structure", ("market structure", "liquidity")), ("risk", ("risk management", "risk reward", "stop loss")),
     ("psychology", ("psychology", "mindset")), ("ema", ("ema", "moving average")),
     ("breakout", ("breakout",)), ("trend", ("trendline", "trend")),
+    ("setup", ("setup", "strategy")),
 ]
 
 
@@ -58,9 +60,19 @@ def score_candidate(item):
     text = f"{title} {description}".lower()
     matched = [term for term in RELEVANCE_TERMS if term in text]
     if matched:
-        score += min(16.0, sum(RELEVANCE_TERMS[t] for t in matched)); reasons.append("educational-relevance:" + ",".join(matched[:3]))
+        score += min(20.0, sum(RELEVANCE_TERMS[t] for t in matched)); reasons.append("educational-relevance:" + ",".join(matched[:3]))
     else:
         score -= 2.0; reasons.append("generic-trading-context")
+
+    # Recent channel analytics show indicator/setup Shorts outperforming the
+    # baseline, so prefer those topics as a ranking signal without bypassing
+    # policy, duplicate, duration, rights or metadata checks.
+    topic = _topic(text)
+    if topic in {"indicator", "rsi", "macd", "bollinger", "ema"}:
+        score += 6.0; reasons.append("channel-winner:indicator")
+    elif topic in {"setup", "price-action", "candlestick", "breakout"}:
+        score += 3.0; reasons.append("channel-winner:setup")
+
     specificity, sr = _specificity_score(title, description); score += specificity; reasons.extend(sr)
     duration = _number(item.get("duration"), 0)
     if duration:
@@ -79,8 +91,6 @@ def score_candidate(item):
         score += 2.0; reasons.append("education-context")
     if any(term in text for term in LOW_QUALITY_TERMS):
         score -= 30.0; reasons.append("promotion-risk")
-    # User-designated source preference is a modest tie-break/boost, not a bypass.
-    # Weak, risky, duplicate or irrelevant content can still lose or be rejected.
     bonus = min(8.0, max(0.0, _number(item.get("_source_priority_bonus"), 0)))
     if bonus:
         score += bonus; reasons.append(f"preferred-source:+{bonus:g}")
