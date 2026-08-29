@@ -62,6 +62,8 @@ jobs:
             Bull_Bear_Final_GitHub_Bot/uploaded_ids.txt \
             Bull_Bear_Final_GitHub_Bot/uploaded_hashes.txt \
             Bull_Bear_Final_GitHub_Bot/metadata_history.jsonl \
+            Bull_Bear_Final_GitHub_Bot/invalid_pins.txt \
+            Bull_Bear_Final_GitHub_Bot/pin_failures.txt \
             2>/dev/null || true
           if git diff --cached --quiet; then
             echo "No Channel 1 upload/history change."
@@ -122,6 +124,8 @@ jobs:
             Bull_Bear_Final_GitHub_Bot/uploaded_ids.txt \
             Bull_Bear_Final_GitHub_Bot/uploaded_hashes.txt \
             Bull_Bear_Final_GitHub_Bot/metadata_history_channel2.jsonl \
+            Bull_Bear_Final_GitHub_Bot/invalid_pins.txt \
+            Bull_Bear_Final_GitHub_Bot/pin_failures.txt \
             2>/dev/null || true
           if git diff --cached --quiet; then
             echo "No Channel 2 upload/history change."
