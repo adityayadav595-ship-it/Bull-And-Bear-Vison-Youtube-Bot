@@ -44,8 +44,9 @@ safety:
   review_queue_file: review_queue.jsonl
   review_queue_size: 10
 
-  # Anti-repetition / anti-spam guardrails.
-  min_hours_between_uploads: 3
+  # Cron runs every 3h. 2.5h guard leaves 30m scheduling/manual-run tolerance
+  # while still preventing rapid duplicate uploads.
+  min_hours_between_uploads: 2.5
   metadata_history_file: metadata_history.jsonl
   metadata_similarity_threshold: 0.95
   max_hashtags: 3
