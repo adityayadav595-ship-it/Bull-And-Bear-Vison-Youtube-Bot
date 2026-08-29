@@ -18,8 +18,15 @@ youtube:
 
 metadata:
   category_id: "27"
-  max_tags: 6
+  max_tags: 8
   quotex_focus: true
+  creator_mode: true
+  title_target_min_chars: 28
+  title_target_max_chars: 62
+  hashtag_limit: 3
+  prefer_context_hashtags: true
+  avoid_keyword_stuffing: true
+  recent_title_memory: 50
 
 discovery:
   exact_pin_sources_only: false
