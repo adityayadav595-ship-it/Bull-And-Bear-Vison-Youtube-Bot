@@ -2,7 +2,9 @@
 #
 # Approved Pinterest and Instagram sources provided by the user.
 # Only use sources whose videos you own or are licensed/authorized to repost.
-# Preferred source: Ramesh Rigga (priority is applied in app.py; quality/policy gates still apply).
+# Top-priority Quotex source
+https://pin.it/rxHOVaU4l
+# Secondary preferred/source pool
 https://pin.it/1QaYata5p
 https://in.pinterest.com/quotextrader007/
 https://pin.it/6oGg5psw3
