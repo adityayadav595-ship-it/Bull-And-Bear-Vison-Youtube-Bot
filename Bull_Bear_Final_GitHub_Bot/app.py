@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from pathlib import Path
 import random
-import sitecustomize  # Explicitly load the persistent Pinterest invalid-pin guard.
+import sitecustomize
 
 from bot.config import load_config
 from bot.downloader import read_sources, discover_from_source, download_candidate, source_key
 from bot.face_filter import video_contains_face
 from bot.history import load_history, append_history, file_sha256
 from bot.ranker import rank_candidates
-from bot.metadata import build_metadata, compliance_reason
+from bot.metadata import build_metadata
 from bot.policy_guard import append_metadata_history, channel_allows_upload, cooldown_reason, item_is_manually_approved, metadata_risk_reason, write_review_queue
 from bot.youtube import get_youtube, upload_video, publish_private_video_after_delay
 
@@ -36,16 +36,12 @@ def _preferred_source(source: str) -> bool:
     return source.strip().rstrip("/") in {str(x).strip().rstrip("/") for x in preferred}
 
 
-def _metadata_input(info: dict, preferred: bool) -> dict:
-    """For the user-designated preferred source, do not republish its old caption.
-    Generate fresh YouTube metadata from neutral context instead. This does not
-    alter the downloaded video itself and the final YouTube metadata guard remains active.
-    """
-    if not preferred:
-        return info
+def _metadata_input(info: dict) -> dict:
+    # Source captions are discovery context only. Never republish promotional/
+    # guarantee wording from them; generate neutral Quotex-focused metadata.
     clean = dict(info)
     clean["title"] = "Quotex trading setup"
-    clean["description"] = "Trading setup and technical analysis example"
+    clean["description"] = "Quotex trading setup and technical analysis example"
     return clean
 
 
@@ -58,7 +54,7 @@ def collect_candidates():
     random.shuffle(sources); sources.sort(key=lambda s: 0 if _preferred_source(s) else 1)
     for source in sources:
         preferred = _preferred_source(source)
-        print("Checking approved source:", source, "[PREFERRED]" if preferred else "")
+        print("Checking approved source:", source, "[TOP PRIORITY]" if preferred else "")
         try: items = discover_from_source(source, CFG)
         except Exception as exc:
             print("Source discovery failed:", exc); continue
@@ -68,13 +64,8 @@ def collect_candidates():
             if key in seen or key in discovered_this_run:
                 print("Already uploaded/discovered, skipping:", item["url"]); continue
             if not _duration_allowed(item): continue
-            risk = compliance_reason(item)
-            if risk and not preferred:
-                print("Policy-risky candidate skipped:", risk, item["url"]); continue
-            if risk and preferred:
-                print("Preferred-source caption will not be reused:", risk)
             item["_history_key"] = key; item["_source_origin"] = source
-            if preferred: item["_source_priority_bonus"] = float(CFG.get("discovery", {}).get("preferred_source_bonus", 8.0) or 0)
+            if preferred: item["_source_priority_bonus"] = float(CFG.get("discovery", {}).get("preferred_source_bonus", 14.0) or 0)
             candidates.append(item); discovered_this_run.add(key)
     print("Total unseen approved video candidates:", len(candidates)); return candidates
 
@@ -87,8 +78,7 @@ def _cleanup(file_path):
 
 def main():
     candidates = collect_candidates()
-    if not candidates:
-        print("No approved video found this cycle."); return
+    if not candidates: print("No approved video found this cycle."); return
     discovery_cfg = CFG.get("discovery", {}); pool_size = int(discovery_cfg.get("smart_pool_size", 8) or 8)
     ranked = rank_candidates(candidates, pool_size=pool_size)
     if not ranked: print("Nothing selected."); return
@@ -110,22 +100,19 @@ def main():
         file_path = None; stage = "prepare"
         print(f"Approved candidate attempt {attempt}/{max_attempts} | score={picked.get('_smart_score', 'n/a')} | reasons={','.join(picked.get('_smart_reasons') or [])}")
         try:
-            print("Downloading human-approved video..."); file_path, full_info = download_candidate(picked, CFG)
-            preferred = bool(picked.get("_source_priority_bonus"))
-            full_info["_source_origin"] = picked.get("_source_origin", ""); full_info["_preferred_source"] = preferred
+            print("Downloading approved video..."); file_path, full_info = download_candidate(picked, CFG)
+            full_info["_source_origin"] = picked.get("_source_origin", "")
+            full_info["_preferred_source"] = bool(picked.get("_source_priority_bonus"))
             print("Downloaded:", file_path)
             if not _duration_allowed(full_info): append_history(history_path, picked["_history_key"]); continue
             if full_info.get("platform") == "instagram" and CFG.get("face_filter", {}).get("instagram_skip_any_face", True):
                 if video_contains_face(file_path, CFG): append_history(history_path, picked["_history_key"]); continue
             video_hash = file_sha256(file_path)
             if video_hash in uploaded_hashes: append_history(history_path, picked["_history_key"]); continue
-            if not preferred:
-                risk = compliance_reason(full_info)
-                if risk: print("UPLOAD BLOCKED by source compliance gate:", risk); continue
-            meta_info = _metadata_input(full_info, preferred)
-            meta = build_metadata(meta_info, CFG)
+            meta = build_metadata(_metadata_input(full_info), CFG)
             meta_risk = metadata_risk_reason(meta, CFG)
-            if meta_risk: print("UPLOAD BLOCKED by metadata guard:", meta_risk); continue
+            if meta_risk:
+                print("UPLOAD BLOCKED by generated-metadata guard:", meta_risk); continue
             print("YouTube title:", meta["title"]); stage = "upload"
             if youtube is None: youtube = get_youtube(CFG)
             video_id = upload_video(youtube, file_path, meta, CFG); print("PRIVATE UPLOAD SUCCESSFUL", video_id)
@@ -135,7 +122,7 @@ def main():
             print(f"Candidate attempt failed: {type(exc).__name__}: {exc}")
             if stage == "upload" or attempt >= max_attempts: raise
         finally: _cleanup(file_path)
-    print("No candidate passed all approval, safety, quality, and duplicate checks this cycle.")
+    print("No candidate passed all upload, duration, duplicate, and generated-metadata checks this cycle.")
 
 
 if __name__ == "__main__": main()
