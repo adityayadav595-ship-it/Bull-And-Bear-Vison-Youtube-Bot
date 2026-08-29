@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import random
+import sitecustomize  # Explicitly load the persistent Pinterest invalid-pin guard.
 
 from bot.config import load_config
 from bot.downloader import read_sources, discover_from_source, download_candidate, source_key
