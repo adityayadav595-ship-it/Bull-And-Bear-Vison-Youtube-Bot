@@ -43,7 +43,8 @@ safety:
   approvals_file: approved_uploads_channel2.txt
   review_queue_file: review_queue_channel2.jsonl
   review_queue_size: 10
-  min_hours_between_uploads: 3
+  # Cron runs every 3h. 2.5h guard leaves 30m scheduling/manual-run tolerance.
+  min_hours_between_uploads: 2.5
   metadata_history_file: metadata_history_channel2.jsonl
   metadata_similarity_threshold: 0.95
   max_hashtags: 3
