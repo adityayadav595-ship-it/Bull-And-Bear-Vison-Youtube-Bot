@@ -74,18 +74,24 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
+          for p in \
             Bull_Bear_Final_GitHub_Bot/review_queue.jsonl \
             Bull_Bear_Final_GitHub_Bot/uploaded_ids.txt \
             Bull_Bear_Final_GitHub_Bot/uploaded_hashes.txt \
             Bull_Bear_Final_GitHub_Bot/metadata_history.jsonl \
             Bull_Bear_Final_GitHub_Bot/invalid_pins.txt \
-            Bull_Bear_Final_GitHub_Bot/pin_failures.txt \
-            2>/dev/null || true
+            Bull_Bear_Final_GitHub_Bot/pin_failures.txt
+          do
+            if [ -e "$p" ] || git ls-files --error-unmatch "$p" >/dev/null 2>&1; then
+              git add -A -- "$p"
+            fi
+          done
           if git diff --cached --quiet; then
             echo "No Channel 1 upload/history change."
             exit 0
           fi
+          echo "Channel 1 state changes detected:"
+          git diff --cached --name-status
           git commit -m "Update Channel 1 and shared duplicate history"
           git pull --rebase origin main
           git push origin main
@@ -153,18 +159,24 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
+          for p in \
             Bull_Bear_Final_GitHub_Bot/review_queue_channel2.jsonl \
             Bull_Bear_Final_GitHub_Bot/uploaded_ids.txt \
             Bull_Bear_Final_GitHub_Bot/uploaded_hashes.txt \
             Bull_Bear_Final_GitHub_Bot/metadata_history_channel2.jsonl \
             Bull_Bear_Final_GitHub_Bot/invalid_pins.txt \
-            Bull_Bear_Final_GitHub_Bot/pin_failures.txt \
-            2>/dev/null || true
+            Bull_Bear_Final_GitHub_Bot/pin_failures.txt
+          do
+            if [ -e "$p" ] || git ls-files --error-unmatch "$p" >/dev/null 2>&1; then
+              git add -A -- "$p"
+            fi
+          done
           if git diff --cached --quiet; then
             echo "No Channel 2 upload/history change."
             exit 0
           fi
+          echo "Channel 2 state changes detected:"
+          git diff --cached --name-status
           git commit -m "Update Channel 2 and shared duplicate history"
           git pull --rebase origin main
           git push origin main
