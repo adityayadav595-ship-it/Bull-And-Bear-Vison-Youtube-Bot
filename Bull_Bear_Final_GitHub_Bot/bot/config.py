@@ -25,7 +25,15 @@ def load_config(path="config.yaml"):
     cfg["client_id"] = os.getenv("YOUTUBE_CLIENT_ID", "").strip()
     cfg["client_secret"] = os.getenv("YOUTUBE_CLIENT_SECRET", "").strip()
     cfg["refresh_token"] = os.getenv("YOUTUBE_REFRESH_TOKEN", "").strip()
-    cfg["cookies_file"] = os.getenv("PINTEREST_COOKIES_FILE", "").strip() or None
+
+    # One optional Netscape-format cookie file can be used by yt-dlp for
+    # Instagram profile discovery. Keep the old Pinterest env name as a
+    # backwards-compatible fallback.
+    cfg["cookies_file"] = (
+        os.getenv("INSTAGRAM_COOKIES_FILE", "").strip()
+        or os.getenv("PINTEREST_COOKIES_FILE", "").strip()
+        or None
+    )
     cfg["brand"] = os.getenv("CHANNEL_BRAND", cfg.get("brand", "Market Vision Pro")).strip()
 
     cfg["rights_confirmed"] = env_bool("I_HAVE_RIGHTS_TO_REPOST", False)
