@@ -30,8 +30,8 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install FFmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Install FFmpeg and OCR
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg tesseract-ocr
 
       - name: Install dependencies
         working-directory: Bull_Bear_Final_GitHub_Bot
