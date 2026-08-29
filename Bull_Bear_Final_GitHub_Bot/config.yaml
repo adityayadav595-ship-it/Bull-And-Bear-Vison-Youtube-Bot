@@ -28,6 +28,9 @@ discovery:
   max_duration_seconds: 60
   smart_pool_size: 10
   max_candidate_attempts_per_run: 8
+  preferred_sources:
+    - "https://pin.it/1QaYata5p"
+  preferred_source_bonus: 8.0
 
 face_filter:
   enabled: true
@@ -43,9 +46,6 @@ safety:
   approvals_file: approved_uploads.txt
   review_queue_file: review_queue.jsonl
   review_queue_size: 10
-
-  # Cron runs every 3h. 2.5h guard leaves 30m scheduling/manual-run tolerance
-  # while still preventing rapid duplicate uploads.
   min_hours_between_uploads: 2.5
   metadata_history_file: metadata_history.jsonl
   metadata_similarity_threshold: 0.95
