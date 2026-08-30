@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 
 
 def _client():
@@ -41,14 +42,47 @@ def _dedupe_hashtags(description: str, hashtags: list[str]) -> str:
     return description.rstrip() + "\n\n" + " ".join(clean)
 
 
+def _models() -> list[str]:
+    primary = os.getenv("GEMINI_MODEL", "gemini-3.7-flash").strip() or "gemini-3.7-flash"
+    configured = os.getenv(
+        "GEMINI_FALLBACK_MODELS",
+        "gemini-3.6-flash,gemini-3.5-flash-lite,gemini-2.5-flash-lite",
+    )
+    result = []
+    for model in [primary, *configured.split(",")]:
+        model = model.strip()
+        if model and model not in result:
+            result.append(model)
+    return result
+
+
+def _generate_with_fallback(client, prompt: str):
+    last_exc = None
+    for model in _models():
+        # One quick retry handles transient capacity spikes without making an upload wait for minutes.
+        for attempt in range(2):
+            try:
+                print(f"Gemini brain: trying {model} (attempt {attempt + 1}/2)")
+                response = client.models.generate_content(model=model, contents=prompt)
+                return model, response
+            except Exception as exc:
+                last_exc = exc
+                print(f"Gemini brain: {model} attempt {attempt + 1} failed: {type(exc).__name__}: {exc}")
+                if attempt == 0:
+                    time.sleep(2)
+        print(f"Gemini brain: switching away from unavailable model {model}")
+    if last_exc is not None:
+        raise last_exc
+    raise RuntimeError("No Gemini model configured")
+
+
 def improve_metadata(meta: dict, context: str = "", category: str = "trading") -> dict:
-    """Optional Gemini metadata pass. Falls back to deterministic metadata on any failure."""
+    """Optional Gemini metadata pass with model failover. Local metadata remains the final fallback."""
     client = _client()
     if client is None:
         print("Gemini brain: GEMINI_API_KEY not configured; using local metadata engine.")
         return meta
 
-    model = os.getenv("GEMINI_MODEL", "gemini-3.7-flash").strip() or "gemini-3.7-flash"
     prompt = f"""You are the metadata editor for the YouTube channel Bull & Bear Vision.
 Return ONLY valid JSON with keys title, description, tags, hashtags.
 Content category: {category}.
@@ -66,7 +100,7 @@ Rules:
 - Do not include URLs or off-platform calls to action.
 """
     try:
-        response = client.models.generate_content(model=model, contents=prompt)
+        model, response = _generate_with_fallback(client, prompt)
         raw = _clean_json_text(getattr(response, "text", ""))
         obj = json.loads(raw)
         out = dict(meta)
@@ -82,5 +116,5 @@ Rules:
         print("Gemini brain: metadata enhanced with", model)
         return out
     except Exception as exc:
-        print("Gemini brain failed safely; using local metadata:", type(exc).__name__, exc)
+        print("Gemini brain failed safely after all models; using local metadata:", type(exc).__name__, exc)
         return meta
