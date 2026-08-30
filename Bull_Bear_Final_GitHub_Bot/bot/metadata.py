@@ -10,18 +10,15 @@ STOPWORDS={"the","and","for","with","this","that","your","from","into","how","wh
 SOURCE_PLATFORM_RE=re.compile(r"\b(?:pinterest(?:\s+(?:video|pin|reel))?|pin\.it|source\s+video|downloaded\s+video)\b",re.I)
 TOPICS=[
 ("aroon","Aroon Indicator","#AroonIndicator","Aroon indicator"),("rsi","RSI","#RSI","RSI indicator"),("relative strength index","RSI","#RSI","RSI indicator"),("macd","MACD","#MACD","MACD indicator"),("ema","EMA","#EMA","EMA strategy"),("moving average","Moving Average","#MovingAverage","moving average"),("bollinger","Bollinger Bands","#BollingerBands","Bollinger Bands"),("support","Support & Resistance","#PriceAction","support and resistance"),("resistance","Support & Resistance","#PriceAction","support and resistance"),("breakout","Breakout","#PriceAction","breakout setup"),("candlestick","Candlestick","#Candlestick","candlestick pattern"),("candle pattern","Candlestick","#Candlestick","candlestick pattern"),("price action","Price Action","#PriceAction","price action"),("trendline","Trendline","#TechnicalAnalysis","trendline setup"),("risk reward","Risk vs Reward","#RiskManagement","risk reward"),("risk","Risk Management","#RiskManagement","risk management"),("fear","Trading Psychology","#TradingPsychology","trading psychology"),("greed","Trading Psychology","#TradingPsychology","trading psychology"),("emotion","Trading Psychology","#TradingPsychology","trading psychology"),("psychology","Trading Psychology","#TradingPsychology","trading psychology"),("mindset","Trader Mindset","#TradingPsychology","trader mindset"),("career","Trader Mindset","#TradingPsychology","trader mindset"),("patience","Trading Patience","#TradingPsychology","trading patience"),("discipline","Trading Discipline","#TradingPsychology","trading discipline")]
-CORE_TAGS=["quotex","quotex trading","trading strategy","technical analysis","trading education"]
+CORE_TAGS=["quotex","quotex trading","quotex strategy","quotex trading strategy","quotex technical analysis","trading strategy","technical analysis","trading education"]
 TOPIC_TAGS={"Aroon Indicator":["aroon indicator","quotex indicator"],"RSI":["rsi strategy","rsi indicator"],"MACD":["macd strategy","macd indicator"],"EMA":["ema strategy","ema indicator"],"Moving Average":["moving average strategy"],"Bollinger Bands":["bollinger bands strategy"],"Support & Resistance":["support and resistance","price action trading"],"Breakout":["breakout strategy","price action trading"],"Candlestick":["candlestick patterns","candlestick trading"],"Price Action":["price action trading","price action strategy"],"Trendline":["trendline strategy"],"Risk vs Reward":["risk reward trading"],"Risk Management":["trading risk management"],"Trading Psychology":["trading psychology","trader emotions"],"Trader Mindset":["trader mindset","trading psychology"],"Trading Patience":["trading patience","trading psychology"],"Trading Discipline":["trading discipline","trading psychology"],"Trading Setup":["trading setup","quotex setup"]}
 RISK_PATTERNS=[r"\b100\s*%\s*(?:guaranteed|sure|win(?:ning)?|profit|returns?)\b",r"\bguaranteed?\s+(?:profit|return|income|winning|win)\b",r"\b(?:profit|return|income)\s+guarantee(?:d)?\b",r"\bsure\s*shot\b",r"\brisk[ -]?free\b",r"\bno\s*risk\b",r"\beasy\s*money\b",r"\binstant\s+guaranteed\s+profit\b",r"\bfixed\s*return\b",r"\bget\s*rich\s*quick\b",r"\bdouble\s*(?:your\s*)?money\b",r"\bfree\s*money\b",r"\bvip\s*signals?\b",r"\bpromo\s*code\b",r"\bdeposit\s*bonus\b",r"\bsub\s*(4|for)\s*sub\b",r"\blike\s*(4|for)\s*like\b",r"\bview\s*(4|for)\s*view\b"]
 OFF_PLATFORM_TERMS=["telegram","whatsapp","signal group","vip group","dm me","contact me","join my group","join our group"]
 FINANCIAL_CTA_TERMS=["profit","signals","signal","deposit","bonus","promo code","trade","trading"]
 
-GENERIC_HOOKS=[
-"POV: Trading Is Harder Than It Looks","The Part of Trading Nobody Talks About","One Chart. One Decision. No Second Chances.","Would You Enter Here or Wait?","Most Traders React Too Early Here","The Chart Looks Easy Until Money Is Involved","Read the Chart Before You Read the Result","This Is Where Patience Gets Tested","A Trader's Biggest Battle Is Usually This","The Entry Is Easy. The Discipline Is Hard.","What Would You Notice First on This Chart?","This Trading Moment Feels Too Real","Every Trader Has Faced a Chart Like This","Sometimes the Best Trade Is No Trade","The Market Tests Patience Before Skill","Trading Psychology in One Short Clip","If You Trade, You Know This Feeling","The Hardest Part Is Waiting","Before You Click Buy or Sell, Watch This","A Small Decision Can Change the Whole Trade","Trader POV: Stay Calm and Read the Chart","Do You See the Setup or the Trap?","One Mistake Traders Keep Repeating","This Is Why Discipline Beats Emotion","Watch the Chart, Not the Hype","The Market Doesn't Care About Your Prediction","Think Before the Entry","Would You Have the Patience to Wait?","A Clean Chart Can Still Fool You","This Is What Trading Pressure Feels Like"
-]
-PSYCH_HOOKS=[
-"POV: You Chose One of the Hardest Skills to Master","Trading Tests Your Mind Before Your Strategy","The Chart Is Easy. Controlling Yourself Is Hard.","Every Trader Learns This the Hard Way","This Is the Side of Trading Nobody Sees","The Real Battle Happens Before the Entry","Your Strategy Isn't the Only Thing Being Tested","Patience Is a Trading Skill Too","This Is What Discipline Looks Like in Real Time","Trader Mindset: Stay Calm When It Gets Difficult"
-]
+GENERIC_HOOKS=["POV: Trading Is Harder Than It Looks","The Part of Trading Nobody Talks About","One Chart. One Decision. No Second Chances.","Would You Enter Here or Wait?","Most Traders React Too Early Here","The Chart Looks Easy Until Money Is Involved","Read the Chart Before You Read the Result","This Is Where Patience Gets Tested","A Trader's Biggest Battle Is Usually This","The Entry Is Easy. The Discipline Is Hard.","What Would You Notice First on This Chart?","This Trading Moment Feels Too Real","Every Trader Has Faced a Chart Like This","Sometimes the Best Trade Is No Trade","The Market Tests Patience Before Skill","Trading Psychology in One Short Clip","If You Trade, You Know This Feeling","The Hardest Part Is Waiting","Before You Click Buy or Sell, Watch This","A Small Decision Can Change the Whole Trade","Trader POV: Stay Calm and Read the Chart","Do You See the Setup or the Trap?","One Mistake Traders Keep Repeating","This Is Why Discipline Beats Emotion","Watch the Chart, Not the Hype","The Market Doesn't Care About Your Prediction","Think Before the Entry","Would You Have the Patience to Wait?","A Clean Chart Can Still Fool You","This Is What Trading Pressure Feels Like"]
+PSYCH_HOOKS=["POV: You Chose One of the Hardest Skills to Master","Trading Tests Your Mind Before Your Strategy","The Chart Is Easy. Controlling Yourself Is Hard.","Every Trader Learns This the Hard Way","This Is the Side of Trading Nobody Sees","The Real Battle Happens Before the Entry","Your Strategy Isn't the Only Thing Being Tested","Patience Is a Trading Skill Too","This Is What Discipline Looks Like in Real Time","Trader Mindset: Stay Calm When It Gets Difficult"]
+
 
 def _raw_source_text(info): return f"{info.get('title','')} {info.get('description','')}".strip()
 def compliance_reason(info):
@@ -35,22 +32,28 @@ def _clean_text(value):
     text=re.sub(r"https?://\S+"," ",value or ""); text=SOURCE_PLATFORM_RE.sub(" ",text); text=re.sub(r"[^A-Za-z0-9+#% .,_:'?-]+"," ",text)
     for pattern in RISK_PATTERNS: text=re.sub(pattern," ",text,flags=re.I)
     return re.sub(r"\s+"," ",text).strip(" -|:,. ")
+
 def _detect_topic(text):
     lower=text.lower()
     for keyword,label,hashtag,phrase in TOPICS:
         if keyword in lower:return label,hashtag,phrase
-    if "pov" in lower and any(x in lower for x in ["hard","difficult","career","pressure","mental","mind"]):
-        return "Trader Mindset","#TradingPsychology","trader mindset"
+    if "pov" in lower and any(x in lower for x in ["hard","difficult","career","pressure","mental","mind"]): return "Trader Mindset","#TradingPsychology","trader mindset"
     return "Trading Setup","#Trading","trading setup"
+
 def _extract_keywords(text,limit=3):
     words=re.findall(r"[A-Za-z][A-Za-z0-9-]{2,}",text.lower()); counts={}
+    known=set(" ".join(CORE_TAGS+[x[0] for x in TOPICS]+[x[3] for x in TOPICS]).split())
     for word in words:
-        if word not in STOPWORDS:counts[word]=counts.get(word,0)+1
+        if word in STOPWORDS: continue
+        if word not in known: continue
+        counts[word]=counts.get(word,0)+1
     return sorted(counts,key=lambda w:(-counts[w],-len(w),w))[:limit]
+
 def _seednum(seed): return int(hashlib.sha256(seed.encode("utf-8",errors="ignore")).hexdigest()[:12],16)
 def _variant(seed,options):return options[_seednum(seed)%len(options)]
 def _normalize(value): return re.sub(r"\s+"," ",re.sub(r"[^a-z0-9 ]+"," ",(value or "").lower())).strip()
-def _recent_titles(cfg,limit=40):
+def _recent_titles(cfg,limit=None):
+    if limit is None: limit=int(cfg.get("metadata",{}).get("recent_title_memory",50) or 50)
     path=Path(cfg.get("safety",{}).get("metadata_history_file","metadata_history.jsonl"))
     if not path.exists(): return []
     titles=[]
@@ -60,23 +63,25 @@ def _recent_titles(cfg,limit=40):
         title=str(row.get("title") or "").strip()
         if title: titles.append(title)
     return titles
+
 def _novelty_score(title,recent_titles):
     norm=_normalize(title)
     if not norm or not recent_titles:return 4.0
-    worst=0.0
-    for previous in recent_titles:
-        worst=max(worst,SequenceMatcher(None,norm,_normalize(previous)).ratio())
+    worst=max(SequenceMatcher(None,norm,_normalize(previous)).ratio() for previous in recent_titles)
     return max(-8.0,6.0-(worst*12.0))
+
 def _context(source_title):
     clean=re.sub(r"#[A-Za-z0-9_]+"," ",source_title or ""); clean=SOURCE_PLATFORM_RE.sub(" ",clean); clean=re.sub(r"\s+"," ",clean).strip(" -|:,. ")
     words=[]
     for word in clean.split():
         if not words or word.lower()!=words[-1].lower(): words.append(word)
     return " ".join(words[:9])
+
 def _hook_pool(topic,phrase):
     if topic in {"Trading Psychology","Trader Mindset","Trading Patience","Trading Discipline"}: return PSYCH_HOOKS
     if topic=="Trading Setup": return GENERIC_HOOKS
     return [f"Can You Spot the {topic} Signal Here?",f"Most Traders Miss This {topic} Detail",f"This {topic} Setup Is Worth Studying",f"Watch What Happens Around This {topic} Setup",f"One {topic} Detail Can Change the Read",f"Would You Trust This {topic} Signal?",f"Before the Entry, Check This {topic} Detail",f"{topic} in Seconds: What Matters Here",f"A Cleaner Way to Read {topic}",f"This Is What {phrase.title()} Looks Like",f"Trader POV: Reading {topic} in Real Time",f"The {topic} Clue Most Beginners Ignore",f"Do You See the {topic} Setup Yet?",f"Wait for This {topic} Confirmation",f"Quick Chart Check: {topic}"]
+
 def _title_score(title,recent_titles=None):
     score=0; n=len(title); low=title.lower(); words=re.findall(r"\w+",low)
     if 28<=n<=62: score+=5
@@ -86,46 +91,45 @@ def _title_score(title,recent_titles=None):
     if low.startswith(("pov:","would you","can you","do you","before","most traders","this is","watch","trader")): score+=2
     if any(w in low for w in ["patience","discipline","mistake","pressure","signal","trap","entry","chart","mind","strategy"]): score+=1
     if len(set(words)) < max(4,len(words)-2): score-=3
-    score += _novelty_score(title,recent_titles or [])
-    return score
+    return score+_novelty_score(title,recent_titles or [])
+
 def _title(source_title,topic,phrase,unique_seed,cfg):
     context=_context(source_title); pool=_hook_pool(topic,phrase); recent=_recent_titles(cfg)
-    start=_seednum(unique_seed+"|hook")%len(pool); rotated=pool[start:]+pool[:start]
-    candidates=list(rotated[:12])
+    start=_seednum(unique_seed+"|hook")%len(pool); rotated=pool[start:]+pool[:start]; candidates=list(rotated[:12])
     generic_context=context.lower() in {"trading setup","quotex trading setup","quotex strategy","technical analysis","trading setup and technical analysis example"}
-    if context and not generic_context and 12<=len(context)<=68:
-        candidates.extend([context,f"{context} | {topic}"])
+    if context and not generic_context and 12<=len(context)<=68: candidates.extend([context,f"{context} | {topic}"])
     cleaned=[]
     for candidate in candidates:
-        candidate=SOURCE_PLATFORM_RE.sub(" ",candidate)
-        candidate=re.sub(r"\b(\w+)(?:\s+\1\b)+",r"\1",candidate,flags=re.I)
-        candidate=re.sub(r"\s+"," ",candidate).strip(" -|:,. ")
+        candidate=SOURCE_PLATFORM_RE.sub(" ",candidate); candidate=re.sub(r"\b(\w+)(?:\s+\1\b)+",r"\1",candidate,flags=re.I); candidate=re.sub(r"\s+"," ",candidate).strip(" -|:,. ")
         for pattern in RISK_PATTERNS:candidate=re.sub(pattern,"",candidate,flags=re.I)
         candidate=re.sub(r"\s+"," ",candidate).strip(" -|:,. ")[:88]
         if candidate and candidate not in cleaned:cleaned.append(candidate)
-    title=max(cleaned,key=lambda t:_title_score(t,recent))
-    print("Creator brain candidates:",len(cleaned),"recent-title memory:",len(recent))
-    return title
+    title=max(cleaned,key=lambda t:_title_score(t,recent)); print("Creator brain candidates:",len(cleaned),"recent-title memory:",len(recent)); return title
+
 def _description(topic,phrase,brand,hashtags,seed):
-    if topic in {"Trading Psychology","Trader Mindset","Trading Patience","Trading Discipline"}:
-        intros=["Trading is not only a chart skill — patience, discipline and emotional control matter too.","A quick trader-mindset moment about staying calm, patient and focused on the process.","The market can test your decision-making long before it tests your strategy.","A short reminder that trading discipline matters as much as spotting a setup."]
-    elif topic=="Trading Setup":
-        intros=["Trading is not only about finding an entry. Patience, discipline and decision-making matter just as much.","A quick trading moment for anyone learning to stay patient and read the chart before acting.","The chart is only one part of the trade. Risk awareness and emotional control matter too.","Study the chart, manage risk and focus on the process instead of chasing the outcome.","A short reminder that good trading starts with observation, patience and discipline."]
-    else:
-        intros=[f"A quick {phrase} example — watch the chart and identify the key detail for yourself.",f"This short highlights a {topic.lower()} concept traders can study directly on the chart.",f"Watch the {phrase} moment and focus on how price behaves around the setup.",f"A compact {topic.lower()} example for technical-analysis practice.",f"Can you identify the important {phrase} clue before the chart develops?"]
-    intro=_variant(seed+"|desc",intros); seo_line=f"Topics: {phrase}, chart reading, technical analysis, trading education and risk awareness."
+    if topic in {"Trading Psychology","Trader Mindset","Trading Patience","Trading Discipline"}: intros=["Trading is not only a chart skill — patience, discipline and emotional control matter too.","A quick trader-mindset moment about staying calm, patient and focused on the process.","The market can test your decision-making long before it tests your strategy.","A short reminder that trading discipline matters as much as spotting a setup."]
+    elif topic=="Trading Setup": intros=["Trading is not only about finding an entry. Patience, discipline and decision-making matter just as much.","A quick trading moment for anyone learning to stay patient and read the chart before acting.","The chart is only one part of the trade. Risk awareness and emotional control matter too.","Study the chart, manage risk and focus on the process instead of chasing the outcome.","A short reminder that good trading starts with observation, patience and discipline."]
+    else: intros=[f"A quick {phrase} example — watch the chart and identify the key detail for yourself.",f"This short highlights a {topic.lower()} concept traders can study directly on the chart.",f"Watch the {phrase} moment and focus on how price behaves around the setup.",f"A compact {topic.lower()} example for technical-analysis practice.",f"Can you identify the important {phrase} clue before the chart develops?"]
+    intro=_variant(seed+"|desc",intros); seo_line=f"Topics: Quotex, {phrase}, chart reading, technical analysis, trading education and risk awareness."
     return SOURCE_PLATFORM_RE.sub(" ",f"{intro}\n\n{seo_line}\n\n{brand} — educational trading content only. Not financial advice. Trading involves risk; profits are never guaranteed.\n\n"+" ".join(hashtags[:3]))[:2000]
+
 def build_metadata(info,cfg):
     risk=compliance_reason(info)
     if risk:raise ValueError(f"YouTube compliance gate: {risk}")
     source_title=_clean_text(info.get("title","")); source_desc=_clean_text(info.get("description","")); source_text=f"{source_title} {source_desc}".strip(); brand=cfg.get("brand","Trading Education Channel"); topic,topic_hashtag,phrase=_detect_topic(source_text)
     unique_seed="|".join([str(info.get("id") or ""),str(info.get("url") or ""),source_text,topic]); title=_title(source_title,topic,phrase,unique_seed,cfg); dynamic=_extract_keywords(source_text); tags=[]
-    for tag in [phrase,*TOPIC_TAGS.get(topic,[]),*dynamic,*CORE_TAGS]:
-        tag=_clean_text(tag).lower()
+    metadata_cfg=cfg.get("metadata",{}); audience_keywords=metadata_cfg.get("audience_keywords") or []
+    for tag in [phrase,*TOPIC_TAGS.get(topic,[]),*audience_keywords,*dynamic,*CORE_TAGS]:
+        tag=_clean_text(str(tag)).lower()
         if tag and tag not in tags:tags.append(tag)
-    tags=tags[:int(cfg.get("metadata",{}).get("max_tags",6))]
-    if topic in {"Trading Psychology","Trader Mindset","Trading Patience","Trading Discipline"}: hashtags=["#Shorts","#TradingPsychology","#TraderMindset"]
-    else: hashtags=["#Shorts",topic_hashtag,"#TradingEducation"]
+    tags=tags[:int(metadata_cfg.get("max_tags",6) or 6)]
+    audience_hashtags=[str(x) for x in (metadata_cfg.get("audience_hashtags") or []) if str(x).startswith("#")]
+    hashtag_limit=int(metadata_cfg.get("hashtag_limit",cfg.get("safety",{}).get("max_hashtags",3)) or 3)
+    topic_tag="#TradingPsychology" if topic in {"Trading Psychology","Trader Mindset","Trading Patience","Trading Discipline"} else topic_hashtag
+    hashtags=[]
+    for hashtag in ["#Shorts",*audience_hashtags,topic_tag,"#TradingEducation"]:
+        if hashtag and hashtag.lower() not in {h.lower() for h in hashtags}: hashtags.append(hashtag)
+        if len(hashtags)>=hashtag_limit: break
     description=_description(topic,phrase,brand,hashtags,unique_seed)
-    print("SEO topic:",topic); print("SEO title:",title); print("Title hook score:",round(_title_score(title,_recent_titles(cfg)),2)); print("SEO tags:",", ".join(tags)); print("SEO hashtags:"," ".join(hashtags))
-    return {"title":title,"description":description,"tags":tags,"category_id":str(cfg.get("metadata",{}).get("category_id","27"))}
+    print("SEO topic:",topic); print("SEO title:",title); print("Title hook score:",_title_score(title,_recent_titles(cfg))); print("SEO tags:",", ".join(tags)); print("SEO hashtags:"," ".join(hashtags))
+    return {"title":title,"description":description,"tags":tags,"category_id":str(metadata_cfg.get("category_id","27"))}
