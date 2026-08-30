@@ -18,7 +18,7 @@ youtube:
 
 metadata:
   category_id: "27"
-  max_tags: 8
+  max_tags: 20
   quotex_focus: true
   creator_mode: true
   title_target_min_chars: 28
@@ -33,6 +33,16 @@ metadata:
     - "quotex strategy"
     - "quotex trading strategy"
     - "quotex technical analysis"
+    - "quotex setup"
+    - "quotex indicator"
+    - "quotex chart analysis"
+    - "quotex trading for beginners"
+    - "technical analysis"
+    - "trading strategy"
+    - "price action trading"
+    - "candlestick trading"
+    - "trading setup"
+    - "trading education"
   audience_hashtags:
     - "#Quotex"
     - "#QuotexTrading"
