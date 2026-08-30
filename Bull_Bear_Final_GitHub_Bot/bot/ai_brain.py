@@ -11,7 +11,14 @@ def _client():
         return None
     try:
         from google import genai
-        return genai.Client(api_key=key)
+        from google.genai import types
+        # Keep optional AI metadata enhancement from consuming the entire autorun.
+        # If Gemini is slow/unavailable, the existing fallback logic will switch
+        # models and ultimately keep the local metadata instead of blocking upload.
+        return genai.Client(
+            api_key=key,
+            http_options=types.HttpOptions(timeout=30_000),
+        )
     except Exception as exc:
         print("Gemini brain unavailable:", exc)
         return None
