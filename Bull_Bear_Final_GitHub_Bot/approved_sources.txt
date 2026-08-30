@@ -2,10 +2,12 @@
 #
 # Approved Pinterest and Instagram sources provided by the user.
 # Only use sources whose videos you own or are licensed/authorized to repost.
-# Top-priority Quotex source
+# Top-priority Quotex/preferred sources
 https://pin.it/rxHOVaU4l
-# Secondary preferred/source pool
+https://pin.it/5NBIheZma
 https://pin.it/1QaYata5p
+
+# Secondary Pinterest source pool
 https://in.pinterest.com/quotextrader007/
 https://pin.it/6oGg5psw3
 https://pin.it/V3fpLWPOn
