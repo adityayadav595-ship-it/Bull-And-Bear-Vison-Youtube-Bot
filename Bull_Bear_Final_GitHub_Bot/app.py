@@ -11,6 +11,7 @@ from bot.history import load_history, append_history, file_sha256
 from bot.ranker import rank_candidates
 from bot.metadata import build_metadata
 from bot.visual_context import extract_visual_context
+from bot.ai_brain import improve_metadata
 from bot.policy_guard import append_metadata_history, channel_allows_upload, cooldown_reason, item_is_manually_approved, metadata_risk_reason, write_review_queue
 from bot.youtube import get_youtube, upload_video, publish_private_video_after_delay
 
@@ -38,17 +39,29 @@ def _preferred_source(source: str) -> bool:
 
 
 def _metadata_input(info: dict, visual_context: str = "") -> dict:
-    # Generate metadata from the actual video's visible context rather than
-    # copying source-platform promotional captions.
     clean = dict(info)
     if visual_context.strip():
         clean["title"] = visual_context[:450]
         clean["description"] = visual_context[:900]
         clean["visual_context"] = visual_context[:900]
     else:
-        clean["title"] = "Quotex trading setup"
-        clean["description"] = "Quotex trading setup and technical analysis example"
+        clean["title"] = "Trading or lifestyle short video"
+        clean["description"] = "Short-form video for Bull & Bear Vision"
     return clean
+
+
+def _content_category(info: dict, visual_context: str = "") -> str:
+    text = " ".join([
+        visual_context or "",
+        str(info.get("title", "")),
+        str(info.get("description", "")),
+    ]).lower()
+    trading_terms = (
+        "quotex", "trade", "trading", "chart", "candlestick", "indicator",
+        "rsi", "macd", "bollinger", "ema", "price action", "support",
+        "resistance", "breakout", "entry", "market", "signal"
+    )
+    return "trading" if any(term in text for term in trading_terms) else "lifestyle"
 
 
 def collect_candidates():
@@ -116,7 +129,10 @@ def main():
             video_hash = file_sha256(file_path)
             if video_hash in uploaded_hashes: append_history(history_path, picked["_history_key"]); continue
             visual_context = extract_visual_context(file_path)
+            category = _content_category(full_info, visual_context)
+            print("Detected content category:", category)
             meta = build_metadata(_metadata_input(full_info, visual_context), CFG)
+            meta = improve_metadata(meta, visual_context, category=category)
             meta_risk = metadata_risk_reason(meta, CFG)
             if meta_risk:
                 print("UPLOAD BLOCKED by generated-metadata guard:", meta_risk); continue
