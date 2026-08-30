@@ -6,4 +6,4 @@ PyYAML
 yt-dlp
 opencv-python-headless
 pytesseract
-openai>=1.0.0
+google-genai
