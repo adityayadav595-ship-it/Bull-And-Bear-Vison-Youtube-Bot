@@ -15,6 +15,16 @@ LOW_QUALITY_TERMS = (
     "guaranteed profit", "fixed return", "risk-free", "no risk", "vip signal",
     "promo code", "deposit bonus", "free signal", "join telegram",
 )
+QUOTEX_TERMS = ("quotex", "qxbroker", "binary option", "binary options")
+TRADING_TERMS = (
+    "trading", "trade", "chart", "candlestick", "indicator", "strategy", "setup",
+    "price action", "support", "resistance", "rsi", "macd", "ema", "bollinger",
+    "market structure", "trendline", "liquidity", "forex", "entry", "stop loss",
+)
+LIFESTYLE_TERMS = (
+    "car", "cars", "supercar", "lamborghini", "ferrari", "luxury", "lifestyle",
+    "jet ski", "jetski", "scuba", "diving", "travel", "model", "fashion", "motivation",
+)
 GENERIC_TITLE_RE = re.compile(r"^(?:pinterest\s+video(?:\s*#?\d+)?|trading\s+short|viral\s+video|status|reel|video)$", re.I)
 TOPIC_RULES = [
     ("indicator", ("indicator", "aroon")),
@@ -40,6 +50,17 @@ def _topic(text):
     return "general"
 
 
+def _content_priority(item):
+    text = f"{item.get('title', '')} {item.get('description', '')} {item.get('url', '')}".lower()
+    if any(term in text for term in QUOTEX_TERMS):
+        return 1, "priority-1:quotex"
+    if any(term in text for term in TRADING_TERMS):
+        return 2, "priority-2:trading"
+    if any(term in text for term in LIFESTYLE_TERMS):
+        return 3, "priority-3:lifestyle"
+    return 3, "priority-3:other"
+
+
 def _specificity_score(title, description):
     score, reasons = 0.0, []
     clean_title = re.sub(r"\s+", " ", title).strip()
@@ -58,21 +79,21 @@ def score_candidate(item):
     title = str(item.get("title") or "").strip()
     description = str(item.get("description") or "").strip()
     text = f"{title} {description}".lower()
+    priority, priority_reason = _content_priority(item)
+    reasons.append(priority_reason)
+    if priority == 1: score += 100.0
+    elif priority == 2: score += 40.0
+    else: score += 0.0
     matched = [term for term in RELEVANCE_TERMS if term in text]
     if matched:
         score += min(20.0, sum(RELEVANCE_TERMS[t] for t in matched)); reasons.append("educational-relevance:" + ",".join(matched[:3]))
     else:
-        score -= 2.0; reasons.append("generic-trading-context")
-
-    # Recent channel analytics show indicator/setup Shorts outperforming the
-    # baseline, so prefer those topics as a ranking signal without bypassing
-    # policy, duplicate, duration, rights or metadata checks.
+        score -= 2.0; reasons.append("generic-context")
     topic = _topic(text)
     if topic in {"indicator", "rsi", "macd", "bollinger", "ema"}:
         score += 6.0; reasons.append("channel-winner:indicator")
     elif topic in {"setup", "price-action", "candlestick", "breakout"}:
         score += 3.0; reasons.append("channel-winner:setup")
-
     specificity, sr = _specificity_score(title, description); score += specificity; reasons.extend(sr)
     duration = _number(item.get("duration"), 0)
     if duration:
@@ -97,42 +118,23 @@ def score_candidate(item):
     return round(score, 2), reasons
 
 
-def _diversify(ranked, pool_size):
-    if not ranked: return []
-    buckets, topic_order = {}, []
-    for item in ranked:
-        topic = _topic(f"{item.get('title', '')} {item.get('description', '')}")
-        item["_smart_topic"] = topic
-        if topic not in buckets: buckets[topic] = []; topic_order.append(topic)
-        buckets[topic].append(item)
-    diversified = []
-    for topic in topic_order:
-        if buckets[topic]:
-            diversified.append(buckets[topic].pop(0))
-            if len(diversified) >= pool_size: return diversified
-    while len(diversified) < pool_size:
-        added = False
-        for topic in topic_order:
-            if buckets[topic]:
-                diversified.append(buckets[topic].pop(0)); added = True
-                if len(diversified) >= pool_size: break
-        if not added: break
-    used_ids = {id(x) for x in diversified}
-    diversified.extend(item for item in ranked if id(item) not in used_ids)
-    return diversified
-
-
 def rank_candidates(candidates, pool_size=8):
     if not candidates: return []
     ranked = []
     for item in candidates:
         score, reasons = score_candidate(item)
-        enriched = dict(item); enriched["_smart_score"] = score; enriched["_smart_reasons"] = reasons; ranked.append(enriched)
-    ranked.sort(key=lambda x: (-float(x.get("_smart_score", 0)), -_number(x.get("timestamp"), 0), str(x.get("url") or "")))
-    ranked = _diversify(ranked, max(1, min(int(pool_size or 8), len(ranked))))
-    print("Smart policy-safe candidate ranking:")
+        enriched = dict(item)
+        enriched["_smart_score"] = score
+        enriched["_smart_reasons"] = reasons
+        enriched["_content_priority"] = _content_priority(item)[0]
+        enriched["_smart_topic"] = _topic(f"{item.get('title', '')} {item.get('description', '')}")
+        ranked.append(enriched)
+    # Hard tier order: Quotex first, trading second, lifestyle/other third.
+    # Score/freshness only decides order inside each tier.
+    ranked.sort(key=lambda x: (int(x.get("_content_priority", 3)), -float(x.get("_smart_score", 0)), -_number(x.get("timestamp"), 0), str(x.get("url") or "")))
+    print("Smart policy-safe candidate ranking (Quotex > trading > lifestyle):")
     for idx, item in enumerate(ranked[:5], 1):
-        print(f"  {idx}. score={item.get('_smart_score')} topic={item.get('_smart_topic', 'general')} duration={item.get('duration', 'unknown')} title={item.get('title', '')[:80]}")
+        print(f"  {idx}. priority={item.get('_content_priority')} score={item.get('_smart_score')} topic={item.get('_smart_topic', 'general')} duration={item.get('duration', 'unknown')} title={item.get('title', '')[:80]}")
     return ranked
 
 
