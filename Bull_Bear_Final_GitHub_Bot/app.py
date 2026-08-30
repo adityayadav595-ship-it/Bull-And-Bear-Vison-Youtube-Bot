@@ -122,7 +122,7 @@ def main():
                 print("UPLOAD BLOCKED by generated-metadata guard:", meta_risk); continue
             print("YouTube title:", meta["title"]); stage = "upload"
             if youtube is None: youtube = get_youtube(CFG)
-            video_id = upload_video(youtube, file_path, meta, CFG); print("PRIVATE UPLOAD SUCCESSFUL", video_id)
+            video_id = upload_video(youtube, file_path, meta, CFG); print("UPLOAD SUCCESSFUL", video_id)
             append_history(history_path, picked["_history_key"]); append_history(hash_history_path, video_hash); append_metadata_history(meta, picked, video_id, CFG)
             publish_private_video_after_delay(youtube, video_id, CFG); return
         except Exception as exc:
