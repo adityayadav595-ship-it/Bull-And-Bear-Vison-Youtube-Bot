@@ -13,6 +13,10 @@ TRADING_WORDS = {
     "pov", "strategy", "signal", "indicator", "forex", "quotex"
 }
 NOISE_WORDS = {"like", "follow", "subscribe", "share", "comment", "instagram", "pinterest", "telegram"}
+COMMON_WORDS = {
+    "the", "this", "that", "you", "your", "are", "is", "to", "of", "in", "on", "for", "with",
+    "before", "after", "hard", "easy", "what", "why", "how", "when", "where", "most", "one", "here"
+}
 
 
 def _clean_line(text: str) -> str:
@@ -22,10 +26,27 @@ def _clean_line(text: str) -> str:
     return text
 
 
+def _line_quality(line: str) -> float:
+    words = re.findall(r"[a-z]+", line.lower())
+    if not words:
+        return 0.0
+    alpha_chars = sum(c.isalpha() for c in line)
+    visible_chars = sum(not c.isspace() for c in line)
+    alpha_ratio = alpha_chars / max(1, visible_chars)
+    natural_words = sum(1 for w in words if w in TRADING_WORDS or w in COMMON_WORDS or len(w) >= 4)
+    natural_ratio = natural_words / max(1, len(words))
+    short_noise = sum(1 for w in words if len(w) <= 2 and w not in {"to", "of", "in", "on", "is"})
+    quality = (alpha_ratio * 0.45) + (natural_ratio * 0.55) - min(0.35, short_noise * 0.08)
+    return max(0.0, min(1.0, quality))
+
+
 def _line_score(line: str, frame_weight: float = 1.0) -> float:
     low = line.lower()
     words = re.findall(r"[a-z0-9]+", low)
     if not words:
+        return -99
+    quality = _line_quality(line)
+    if quality < 0.48:
         return -99
     score = min(4.0, len(words) * 0.35)
     score += sum(1.8 for w in TRADING_WORDS if w in low)
@@ -34,6 +55,7 @@ def _line_score(line: str, frame_weight: float = 1.0) -> float:
     if "?" in line: score += 1.5
     if 5 <= len(words) <= 14: score += 2.0
     if len(line) > 120: score -= 2.0
+    score += quality * 2.0
     return score * frame_weight
 
 
@@ -47,11 +69,10 @@ def _ocr_variants(frame):
 
 
 def extract_visual_context(video_path: str, max_frames: int = 10) -> str:
-    """Read actual on-screen text and return the strongest metadata context.
+    """Read on-screen text and return only reliable metadata context.
 
     Multiple frames and OCR variants are scored so persistent hooks/topics beat
-    random UI text. This is content understanding for metadata, not an outcome
-    or profit predictor.
+    random UI text. Low-quality OCR is rejected rather than influencing titles.
     """
     path = Path(video_path)
     if not path.exists(): return ""
@@ -75,7 +96,6 @@ def extract_visual_context(video_path: str, max_frames: int = 10) -> str:
         if w > 1080:
             scale = 1080.0 / w
             frame = cv2.resize(frame, (int(w * scale), int(h * scale)))
-        # Early frames get a mild boost because Shorts hooks usually appear there.
         frame_weight = 1.15 if pos <= 3 else 1.0
         for variant in _ocr_variants(frame):
             for psm in (6, 11):
@@ -102,8 +122,8 @@ def extract_visual_context(video_path: str, max_frames: int = 10) -> str:
     selected_keys = []
     for score, line in ranked:
         key = re.sub(r"[^a-z0-9]+", "", line.lower())
-        # Suppress near-duplicate OCR versions of the same persistent overlay.
         if any(key in k or k in key for k in selected_keys): continue
+        if _line_quality(line) < 0.55: continue
         selected.append(line); selected_keys.append(key)
         if len(selected) >= 6: break
 
@@ -112,7 +132,7 @@ def extract_visual_context(video_path: str, max_frames: int = 10) -> str:
     duration = (total / fps) if fps > 0 else 0
     if context:
         print("Visual context detected:", context[:500])
-        print("Visual intelligence: ranked", len(ranked), "OCR candidates from", len(ratios), "sampled frames")
+        print("Visual intelligence: ranked", len(ranked), "reliable OCR candidates from", len(ratios), "sampled frames")
     else:
-        print(f"Visual context: no reliable OCR text found ({duration:.1f}s clip).")
+        print(f"Visual context: no reliable OCR text found ({duration:.1f}s clip); metadata will use safe fallback context.")
     return context[:900]
