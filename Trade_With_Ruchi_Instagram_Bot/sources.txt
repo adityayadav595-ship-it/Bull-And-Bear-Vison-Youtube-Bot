@@ -1,6 +1,9 @@
-# Trade With Ruchi Instagram Reel sources
-# Format: PUBLIC_HTTPS_VIDEO_URL | optional caption
-# Example:
-# https://example.com/reel-001.mp4 | Market learning with Trade With Ruchi 📈 #trading #tradewithruchi
+# Trade With Ruchi — approved Instagram Reel sources only
+# Format: INSTAGRAM_REEL_OR_POST_URL | optional custom caption
+# Examples:
+# https://www.instagram.com/reel/ABC123xyz/ | Trade With Ruchi 📈 #trading #tradewithruchi
+# https://www.instagram.com/p/DEF456xyz/ | Market learning with Trade With Ruchi
 #
-# Add only videos you own or have permission to publish.
+# The bot downloads the highest available MP4 from Instagram without re-encoding,
+# then uploads that local file to Meta using the official resumable-upload flow.
+# Add only content you own or have permission to republish.
