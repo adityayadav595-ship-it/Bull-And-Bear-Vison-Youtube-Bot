@@ -18,6 +18,7 @@ on:
       - main
     paths:
       - "Trade_With_Ruchi_Instagram_Bot/app.py"
+      - "Trade_With_Ruchi_Instagram_Bot/filtered_runner.py"
       - "Trade_With_Ruchi_Instagram_Bot/requirements.txt"
       - "Trade_With_Ruchi_Instagram_Bot/sources.txt"
       - "Trade_With_Ruchi_Instagram_Bot/approved_profiles.txt"
@@ -68,7 +69,7 @@ jobs:
           CLOUDINARY_URL: ${{ secrets.CLOUDINARY_URL }}
           PROFILES_PER_RUN: ${{ vars.RUCHI_PROFILES_PER_RUN || '3' }}
           REELS_PER_PROFILE: ${{ vars.RUCHI_REELS_PER_PROFILE || '3' }}
-        run: python app.py
+        run: python filtered_runner.py
       - name: Save upload history
         if: ${{ success() }}
         shell: bash
