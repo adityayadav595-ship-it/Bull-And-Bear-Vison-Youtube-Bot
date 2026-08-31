@@ -1,0 +1,76 @@
+name: Trade With Ruchi - Instagram Auto Upload
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Test selection/caption without publishing"
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+  schedule:
+    # Every 3 hours (UTC). Safe no-op when no unused source exists.
+    - cron: "17 */3 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: trade-with-ruchi-instagram-uploader
+  cancel-in-progress: false
+
+jobs:
+  upload-reel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: Trade_With_Ruchi_Instagram_Bot/requirements.txt
+
+      - name: Install dependencies
+        working-directory: Trade_With_Ruchi_Instagram_Bot
+        run: pip install -r requirements.txt
+
+      - name: Configure run mode
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "DRY_RUN=${{ inputs.dry_run }}" >> "$GITHUB_ENV"
+          else
+            echo "DRY_RUN=false" >> "$GITHUB_ENV"
+          fi
+
+      - name: Upload next Reel
+        working-directory: Trade_With_Ruchi_Instagram_Bot
+        env:
+          BRAND_NAME: Trade With Ruchi
+          Ruchi_IG_USER_ID: ${{ secrets.RUCHI_IG_USER_ID }}
+          Ruchi_IG_ACCESS_TOKEN: ${{ secrets.RUCHI_IG_ACCESS_TOKEN }}
+          META_GRAPH_VERSION: ${{ vars.META_GRAPH_VERSION || 'v22.0' }}
+          SHARE_TO_FEED: "true"
+        run: python app.py
+
+      - name: Save upload history
+        if: ${{ success() }}
+        shell: bash
+        run: |
+          if git diff --quiet -- Trade_With_Ruchi_Instagram_Bot/uploaded_urls.txt; then
+            echo "No new upload history to commit."
+            exit 0
+          fi
+          git config user.name "trade-with-ruchi-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Trade_With_Ruchi_Instagram_Bot/uploaded_urls.txt
+          git commit -m "Record Trade With Ruchi Instagram upload"
+          git push
