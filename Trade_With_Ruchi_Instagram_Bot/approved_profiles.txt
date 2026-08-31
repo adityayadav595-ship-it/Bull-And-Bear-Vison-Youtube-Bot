@@ -1,0 +1,7 @@
+# Trade With Ruchi — approved Instagram source profiles
+# Add one username or profile URL per line.
+# Examples:
+# trade_with_example
+# https://www.instagram.com/trade_with_example/
+#
+# Only profiles you own or have permission to republish from should be added here.
