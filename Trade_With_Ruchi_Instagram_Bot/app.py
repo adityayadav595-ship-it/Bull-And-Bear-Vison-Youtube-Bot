@@ -23,8 +23,8 @@ BUFFER_ACCESS_TOKEN = os.getenv("BUFFER_ACCESS_TOKEN", "").strip()
 BUFFER_CHANNEL_ID = os.getenv("BUFFER_CHANNEL_ID", "").strip()
 BUFFER_API_URL = "https://api.buffer.com"
 DRY_RUN = os.getenv("DRY_RUN", "false").lower() in {"1", "true", "yes", "on"}
-PROFILES_PER_RUN = max(1, int(os.getenv("PROFILES_PER_RUN", "3")))
-REELS_PER_PROFILE = max(1, int(os.getenv("REELS_PER_PROFILE", "6")))
+PROFILES_PER_RUN = max(1, int(os.getenv("PROFILES_PER_RUN", "1")))
+REELS_PER_PROFILE = max(1, int(os.getenv("REELS_PER_PROFILE", "3")))
 SOURCE_IG_SESSION_JSON = os.getenv("RUCHI_SOURCE_IG_SESSION_JSON", "").strip()
 
 
@@ -130,6 +130,8 @@ def _build_instaloader() -> instaloader.Instaloader:
         save_metadata=False,
         compress_json=False,
         quiet=True,
+        max_connection_attempts=1,
+        request_timeout=20.0,
     )
     if SOURCE_IG_SESSION_JSON:
         try:
@@ -145,7 +147,7 @@ def _profiles_for_this_run(profiles: list[str]) -> list[str]:
     if len(profiles) <= PROFILES_PER_RUN:
         return profiles
     slot = int(time.time() // (3 * 60 * 60))
-    start = (slot * PROFILES_PER_RUN) % len(profiles)
+    start = slot % len(profiles)
     ordered = profiles[start:] + profiles[:start]
     return ordered[:PROFILES_PER_RUN]
 
@@ -179,7 +181,8 @@ def discover_profile_reels(seen_urls: set[str]) -> list[dict]:
                     "origin": f"profile:@{username}",
                 })
         except Exception as exc:
-            print(f"@{username}: discovery failed: {type(exc).__name__}: {exc}")
+            print(f"@{username}: discovery skipped: {type(exc).__name__}: {exc}")
+            print("Instagram may be rate-limiting public profile discovery; this run will not wait for a long retry.")
     candidates.sort(key=lambda x: int(x.get("timestamp", 0)), reverse=True)
     return candidates
 
