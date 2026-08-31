@@ -21,6 +21,7 @@ on:
       - "Trade_With_Ruchi_Instagram_Bot/requirements.txt"
       - "Trade_With_Ruchi_Instagram_Bot/sources.txt"
       - "Trade_With_Ruchi_Instagram_Bot/approved_profiles.txt"
+      - "Trade_With_Ruchi_Instagram_Bot/pinterest_sources.txt"
       - ".github/workflows/trade-with-ruchi-instagram.yml"
 
 permissions:
