@@ -1,117 +1,56 @@
 from __future__ import annotations
 
-import html
-import itertools
-import json
 import os
 import random
-import re
-import sys
-import time
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
-import instaloader
 import requests
-import yt_dlp
 
 BASE_DIR = Path(__file__).resolve().parent
-SOURCES_FILE = BASE_DIR / "sources.txt"
 PROFILES_FILE = BASE_DIR / "approved_profiles.txt"
+SOURCES_FILE = BASE_DIR / "sources.txt"
 HISTORY_FILE = BASE_DIR / "uploaded_urls.txt"
 
 BRAND = os.getenv("BRAND_NAME", "Trade With Ruchi")
 BUFFER_ACCESS_TOKEN = os.getenv("BUFFER_ACCESS_TOKEN", "").strip()
 BUFFER_CHANNEL_ID = os.getenv("BUFFER_CHANNEL_ID", "").strip()
-BUFFER_API_URL = "https://api.buffer.com"
+INSTAGRAMAPI_KEY = os.getenv("INSTAGRAMAPI_KEY", "").strip()
 DRY_RUN = os.getenv("DRY_RUN", "false").lower() in {"1", "true", "yes", "on"}
 PROFILES_PER_RUN = max(1, int(os.getenv("PROFILES_PER_RUN", "3")))
 REELS_PER_PROFILE = max(1, int(os.getenv("REELS_PER_PROFILE", "3")))
-SOURCE_IG_SESSION_JSON = os.getenv("RUCHI_SOURCE_IG_SESSION_JSON", "").strip()
-
-UA = (
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) "
-    "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"
-)
-REEL_RE = re.compile(r"(?:https?:\\/\\/(?:www\\.)?instagram\\.com)?\\?/reel\\?/([A-Za-z0-9_-]{5,})", re.I)
-SHORTCODE_RE = re.compile(r'"shortcode"\s*:\s*"([A-Za-z0-9_-]{5,})"')
+BUFFER_API_URL = "https://api.buffer.com"
+IG_API_BASE = "https://api.instagramapi.dev/v1"
+UA = "Trade-With-Ruchi-Auto-Uploader/2.0"
 
 
-def _is_instagram_reel_url(url: str) -> bool:
-    try:
-        parsed = urlparse(url)
-        host = parsed.netloc.lower().split(":")[0]
-        path = parsed.path.lower()
-        return (
-            parsed.scheme == "https"
-            and (host == "instagram.com" or host.endswith(".instagram.com"))
-            and ("/reel/" in path or "/reels/" in path or "/p/" in path)
-        )
-    except Exception:
-        return False
-
-
-def _profile_username(value: str) -> str:
+def username(value: str) -> str:
     value = value.strip()
-    if not value:
-        return ""
     if value.startswith(("http://", "https://")):
-        try:
-            parsed = urlparse(value)
-            host = parsed.netloc.lower().split(":")[0]
-            if host != "instagram.com" and not host.endswith(".instagram.com"):
-                return ""
-            parts = [p for p in parsed.path.split("/") if p]
-            if not parts:
-                return ""
-            value = parts[0]
-        except Exception:
-            return ""
-    value = value.lstrip("@").strip()
-    allowed = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._"
-    return value if value and all(ch in allowed for ch in value) else ""
-
-
-def load_sources() -> list[dict]:
-    if not SOURCES_FILE.exists():
-        return []
-    items: list[dict] = []
-    for raw in SOURCES_FILE.read_text(encoding="utf-8").splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#"):
-            continue
-        parts = [p.strip() for p in line.split("|", 1)]
-        url = parts[0]
-        caption = parts[1] if len(parts) > 1 else ""
-        if _is_instagram_reel_url(url):
-            items.append({"url": url, "caption": caption, "timestamp": 0, "origin": "direct"})
-    return items
+        parts = [p for p in urlparse(value).path.split("/") if p]
+        value = parts[0] if parts else ""
+    return value.lstrip("@").strip()
 
 
 def load_profiles() -> list[str]:
     if not PROFILES_FILE.exists():
         return []
-    profiles: list[str] = []
-    seen: set[str] = set()
+    out, seen = [], set()
     for raw in PROFILES_FILE.read_text(encoding="utf-8").splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#"):
+        if not raw.strip() or raw.lstrip().startswith("#"):
             continue
-        username = _profile_username(line)
-        if username and username.lower() not in seen:
-            profiles.append(username)
-            seen.add(username.lower())
-    return profiles
+        u = username(raw)
+        if u and u.lower() not in seen:
+            out.append(u)
+            seen.add(u.lower())
+    return out
 
 
 def load_history() -> set[str]:
     if not HISTORY_FILE.exists():
         return set()
-    return {
-        line.strip()
-        for line in HISTORY_FILE.read_text(encoding="utf-8").splitlines()
-        if line.strip() and not line.lstrip().startswith("#")
-    }
+    return {x.strip() for x in HISTORY_FILE.read_text(encoding="utf-8").splitlines() if x.strip() and not x.lstrip().startswith("#")}
 
 
 def append_history(url: str) -> None:
@@ -119,10 +58,98 @@ def append_history(url: str) -> None:
         f.write(url + "\n")
 
 
-def build_caption(custom_caption: str) -> str:
-    custom_caption = custom_caption.strip()
-    if custom_caption:
-        return custom_caption[:2200]
+def direct_candidates(seen: set[str]) -> list[dict]:
+    if not SOURCES_FILE.exists():
+        return []
+    out = []
+    for raw in SOURCES_FILE.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = [p.strip() for p in line.split("|", 1)]
+        if parts[0] not in seen:
+            out.append({"url": parts[0], "caption": parts[1] if len(parts) > 1 else "", "video_url": "", "taken_at": "", "origin": "direct"})
+    return out
+
+
+def ig_get(path: str, params: dict) -> dict:
+    if not INSTAGRAMAPI_KEY:
+        raise RuntimeError("INSTAGRAMAPI_KEY GitHub secret is missing.")
+    r = requests.get(
+        f"{IG_API_BASE}{path}",
+        params=params,
+        headers={"Authorization": f"Bearer {INSTAGRAMAPI_KEY}", "User-Agent": UA},
+        timeout=45,
+    )
+    try:
+        payload = r.json()
+    except ValueError:
+        raise RuntimeError(f"InstagramAPI returned non-JSON HTTP {r.status_code}.")
+    if not r.ok:
+        err = payload.get("error") or payload
+        raise RuntimeError(f"InstagramAPI HTTP {r.status_code}: {err}")
+    return payload
+
+
+def discover_api_reels(seen: set[str]) -> list[dict]:
+    profiles = load_profiles()
+    if not profiles:
+        raise RuntimeError("approved_profiles.txt has no source profiles.")
+    random.shuffle(profiles)
+    selected = profiles[:PROFILES_PER_RUN]
+    print("InstagramAPI scanning:", ", ".join("@" + u for u in selected))
+    found = []
+    errors = []
+    for u in selected:
+        try:
+            payload = ig_get("/profile/reels", {"handle": u})
+            data = payload.get("data") or {}
+            items = data.get("items") if isinstance(data, dict) else []
+            items = items or []
+            count = 0
+            for item in items:
+                if count >= REELS_PER_PROFILE:
+                    break
+                code = str(item.get("shortcode") or "").strip()
+                reel_url = str(item.get("url") or "").strip()
+                if not reel_url and code:
+                    reel_url = f"https://www.instagram.com/reel/{code}/"
+                if not reel_url or reel_url in seen:
+                    continue
+                video = str(item.get("video_url") or "").strip()
+                found.append({
+                    "url": reel_url,
+                    "caption": str(item.get("caption") or ""),
+                    "video_url": video,
+                    "taken_at": str(item.get("taken_at") or ""),
+                    "origin": f"instagramapi:@{u}",
+                })
+                count += 1
+            print(f"@{u}: {count} unseen Reel candidate(s).")
+        except Exception as exc:
+            errors.append(f"@{u}: {exc}")
+            print(errors[-1])
+    if not found and errors and len(errors) == len(selected):
+        raise RuntimeError("All InstagramAPI profile lookups failed: " + " | ".join(errors))
+    found.sort(key=lambda x: x.get("taken_at", ""), reverse=True)
+    return found
+
+
+def resolve_video(item: dict) -> str:
+    video = str(item.get("video_url") or "").strip()
+    if video.startswith("https://"):
+        return video
+    # Direct/manual source fallback: ask the API for the Reel details, avoiding GitHub->Instagram scraping.
+    payload = ig_get("/post", {"url": item["url"]})
+    data = payload.get("data") or {}
+    video = str(data.get("video_url") or "").strip()
+    if not video.startswith("https://"):
+        raise RuntimeError("InstagramAPI did not return a public HTTPS video URL for the Reel.")
+    return video
+
+
+def build_caption(source_caption: str) -> str:
+    # Do not copy source promotional captions; publish a clean brand caption.
     return (
         f"{BRAND} 📈\n\n"
         "Trading education & market-learning content.\n"
@@ -134,274 +161,63 @@ def build_caption(custom_caption: str) -> str:
 def buffer_graphql(query: str, variables: dict | None = None) -> dict:
     if not BUFFER_ACCESS_TOKEN:
         raise RuntimeError("BUFFER_ACCESS_TOKEN GitHub secret is missing.")
-    response = requests.post(
+    r = requests.post(
         BUFFER_API_URL,
-        headers={
-            "Authorization": f"Bearer {BUFFER_ACCESS_TOKEN}",
-            "Content-Type": "application/json",
-            "User-Agent": UA,
-        },
+        headers={"Authorization": f"Bearer {BUFFER_ACCESS_TOKEN}", "Content-Type": "application/json", "User-Agent": UA},
         json={"query": query, "variables": variables or {}},
         timeout=45,
     )
     try:
-        payload = response.json()
+        payload = r.json()
     except ValueError:
-        raise RuntimeError(f"Buffer returned non-JSON response ({response.status_code}): {response.text[:500]}")
-    if not response.ok:
-        raise RuntimeError(f"Buffer API HTTP {response.status_code}: {payload}")
-    if payload.get("errors"):
-        raise RuntimeError(f"Buffer GraphQL error: {payload['errors']}")
+        raise RuntimeError(f"Buffer returned non-JSON HTTP {r.status_code}.")
+    if not r.ok or payload.get("errors"):
+        raise RuntimeError(f"Buffer API error: {payload}")
     return payload.get("data") or {}
 
 
 def resolve_instagram_channel() -> str:
     if BUFFER_CHANNEL_ID:
-        print("Using configured Buffer Instagram channel id.")
         return BUFFER_CHANNEL_ID
-
-    org_data = buffer_graphql(
-        """
-        query GetOrganizations {
-          account { organizations { id name } }
-        }
-        """
-    )
+    org_data = buffer_graphql("query { account { organizations { id name } } }")
     orgs = ((org_data.get("account") or {}).get("organizations") or [])
-    if not orgs:
-        raise RuntimeError("Buffer key is valid but no organization was returned.")
-
-    instagram_channels: list[dict] = []
+    channels = []
     for org in orgs:
         data = buffer_graphql(
-            """
-            query GetChannels($orgId: OrganizationId!) {
-              channels(input: { organizationId: $orgId }) {
-                id name displayName service
-              }
-            }
-            """,
+            "query GetChannels($orgId: OrganizationId!) { channels(input: { organizationId: $orgId }) { id name displayName service } }",
             {"orgId": org["id"]},
         )
-        for channel in data.get("channels") or []:
-            if str(channel.get("service", "")).lower() == "instagram":
-                instagram_channels.append(channel)
-
-    if not instagram_channels:
-        raise RuntimeError("No Instagram channel is connected to this Buffer account.")
-    if len(instagram_channels) > 1:
-        names = ", ".join(str(c.get("displayName") or c.get("name") or c.get("id")) for c in instagram_channels)
-        raise RuntimeError(
-            "More than one Instagram channel is connected. Set BUFFER_CHANNEL_ID. "
-            f"Found: {names}"
-        )
-    channel = instagram_channels[0]
-    print(f"Buffer connection OK | Instagram channel: {channel.get('displayName') or channel.get('name') or channel['id']}")
-    return str(channel["id"])
-
-
-def _profiles_for_this_run(profiles: list[str]) -> list[str]:
-    if len(profiles) <= PROFILES_PER_RUN:
-        return profiles
-    slot = int(time.time() // (3 * 60 * 60))
-    start = slot % len(profiles)
-    ordered = profiles[start:] + profiles[:start]
-    return ordered[:PROFILES_PER_RUN]
-
-
-def _discover_from_public_html(username: str, seen_urls: set[str]) -> list[dict]:
-    url = f"https://www.instagram.com/{username}/"
-    response = requests.get(
-        url,
-        headers={
-            "User-Agent": UA,
-            "Accept": "text/html,application/xhtml+xml",
-            "Accept-Language": "en-US,en;q=0.9",
-        },
-        timeout=15,
-        allow_redirects=True,
-    )
-    if response.status_code == 429:
-        print(f"@{username}: Instagram HTML rate-limited (429); skipping immediately.")
-        return []
-    if not response.ok:
-        print(f"@{username}: Instagram HTML returned HTTP {response.status_code}.")
-        return []
-
-    body = html.unescape(response.text).replace("\\/", "/")
-    codes: list[str] = []
-    for match in REEL_RE.finditer(body):
-        code = match.group(1)
-        if code not in codes:
-            codes.append(code)
-    if not codes:
-        for match in SHORTCODE_RE.finditer(body):
-            code = match.group(1)
-            if code not in codes:
-                codes.append(code)
-
-    found: list[dict] = []
-    for code in codes[:REELS_PER_PROFILE]:
-        reel_url = f"https://www.instagram.com/reel/{code}/"
-        if reel_url in seen_urls:
-            continue
-        found.append({
-            "url": reel_url,
-            "caption": "",
-            "timestamp": 0,
-            "origin": f"profile-html:@{username}",
-        })
-    if found:
-        print(f"@{username}: found {len(found)} Reel candidate(s) from public profile HTML.")
-    return found
-
-
-def _build_instaloader() -> instaloader.Instaloader:
-    loader = instaloader.Instaloader(
-        download_pictures=False,
-        download_videos=False,
-        download_video_thumbnails=False,
-        save_metadata=False,
-        compress_json=False,
-        quiet=True,
-        max_connection_attempts=1,
-        request_timeout=12.0,
-    )
-    if SOURCE_IG_SESSION_JSON:
-        try:
-            cookies = json.loads(SOURCE_IG_SESSION_JSON)
-            if isinstance(cookies, dict):
-                loader.context.update_cookies({str(k): str(v) for k, v in cookies.items()})
-                print("Optional Instagram source session loaded.")
-        except Exception as exc:
-            print(f"Optional Instagram source session could not be loaded: {exc}")
-    return loader
-
-
-def discover_profile_reels(seen_urls: set[str]) -> list[dict]:
-    profiles = load_profiles()
-    if not profiles:
-        return []
-    selected = _profiles_for_this_run(profiles)
-    print("Scanning approved source profiles:", ", ".join(f"@{u}" for u in selected))
-
-    candidates: list[dict] = []
-    for username in selected:
-        try:
-            candidates.extend(_discover_from_public_html(username, seen_urls))
-        except Exception as exc:
-            print(f"@{username}: HTML discovery skipped: {type(exc).__name__}: {exc}")
-        if candidates:
-            break
-        time.sleep(1)
-
-    # Instaloader is only a last fallback and is tried once, never across many profiles.
-    if not candidates and selected:
-        username = selected[0]
-        loader = _build_instaloader()
-        try:
-            profile = instaloader.Profile.from_username(loader.context, username)
-            for post in itertools.islice(profile.get_reels(), REELS_PER_PROFILE):
-                shortcode = str(getattr(post, "shortcode", "") or "").strip()
-                if not shortcode:
-                    continue
-                reel_url = f"https://www.instagram.com/reel/{shortcode}/"
-                if reel_url in seen_urls:
-                    continue
-                try:
-                    timestamp = int(post.date_utc.timestamp())
-                except Exception:
-                    timestamp = 0
-                candidates.append({
-                    "url": reel_url,
-                    "caption": "",
-                    "timestamp": timestamp,
-                    "origin": f"instaloader:@{username}",
-                })
-        except Exception as exc:
-            print(f"@{username}: Instaloader fallback skipped: {type(exc).__name__}: {exc}")
-
-    candidates.sort(key=lambda x: int(x.get("timestamp", 0)), reverse=True)
-    return candidates
-
-
-def extract_public_video_url(source_url: str) -> str:
-    opts = {
-        "format": "best[ext=mp4]/best",
-        "noplaylist": True,
-        "quiet": True,
-        "no_warnings": False,
-        "skip_download": True,
-        "socket_timeout": 20,
-        "retries": 1,
-        "http_headers": {"User-Agent": UA},
-    }
-    with yt_dlp.YoutubeDL(opts) as ydl:
-        info = ydl.extract_info(source_url, download=False)
-    if not info:
-        raise RuntimeError("Could not resolve source Reel media.")
-
-    direct = str(info.get("url") or "").strip()
-    if not direct:
-        requested = info.get("requested_formats") or []
-        for fmt in requested:
-            if fmt.get("vcodec") != "none" and fmt.get("url"):
-                direct = str(fmt["url"]).strip()
-                break
-    if not direct.startswith("https://"):
-        raise RuntimeError("Instagram source did not expose an HTTPS video URL Buffer can fetch.")
-
-    # Verify it is reachable before handing it to Buffer.
-    try:
-        check = requests.get(direct, headers={"User-Agent": UA, "Range": "bytes=0-1023"}, timeout=20, stream=True)
-        if check.status_code not in {200, 206}:
-            raise RuntimeError(f"Resolved Instagram video URL returned HTTP {check.status_code}.")
-    finally:
-        try:
-            check.close()
-        except Exception:
-            pass
-    print("Resolved and verified source video URL for immediate Buffer publishing.")
-    return direct
+        channels.extend(c for c in (data.get("channels") or []) if str(c.get("service", "")).lower() == "instagram")
+    if not channels:
+        raise RuntimeError("No Instagram channel connected in Buffer.")
+    if len(channels) > 1:
+        raise RuntimeError("Multiple Instagram channels found; set BUFFER_CHANNEL_ID.")
+    c = channels[0]
+    print("Buffer connection OK | Instagram channel:", c.get("displayName") or c.get("name") or c["id"])
+    return str(c["id"])
 
 
 def create_buffer_reel(channel_id: str, caption: str, video_url: str) -> str:
-    query = """
+    mutation = """
     mutation CreateInstagramReel($input: CreatePostInput!) {
       createPost(input: $input) {
-        ... on PostActionSuccess {
-          post { id text dueAt status }
-        }
+        ... on PostActionSuccess { post { id text dueAt status } }
         ... on MutationError { message }
       }
     }
     """
-    variables = {
-        "input": {
-            "text": caption,
-            "channelId": channel_id,
-            "schedulingType": "automatic",
-            "mode": "shareNow",
-            "assets": [
-                {
-                    "video": {
-                        "url": video_url,
-                        "metadata": {"thumbnailOffset": 1000},
-                    }
-                }
-            ],
-            "metadata": {
-                "instagram": {
-                    "type": "reel",
-                    "shouldShareToFeed": True,
-                }
-            },
-        }
-    }
-    data = buffer_graphql(query, variables)
+    variables = {"input": {
+        "text": caption,
+        "channelId": channel_id,
+        "schedulingType": "automatic",
+        "mode": "shareNow",
+        "assets": [{"video": {"url": video_url, "metadata": {"thumbnailOffset": 1000}}}],
+        "metadata": {"instagram": {"type": "reel", "shouldShareToFeed": True}},
+    }}
+    data = buffer_graphql(mutation, variables)
     result = data.get("createPost") or {}
     if result.get("message"):
-        raise RuntimeError(f"Buffer rejected Reel: {result['message']}")
+        raise RuntimeError("Buffer rejected Reel: " + str(result["message"]))
     post = result.get("post") or {}
     post_id = str(post.get("id") or "").strip()
     if not post_id:
@@ -411,35 +227,22 @@ def create_buffer_reel(channel_id: str, caption: str, video_url: str) -> str:
 
 
 def main() -> int:
-    # Validate Buffer first so publishing credentials/channel errors are surfaced immediately.
-    channel_id = ""
-    if not DRY_RUN:
-        channel_id = resolve_instagram_channel()
-
+    channel_id = "" if DRY_RUN else resolve_instagram_channel()
     seen = load_history()
-    direct_candidates = [item for item in load_sources() if item["url"] not in seen]
-    if direct_candidates:
-        random.shuffle(direct_candidates)
-        picked = direct_candidates[0]
-    else:
-        profile_candidates = discover_profile_reels(seen)
-        if not profile_candidates:
-            print("No unseen Reel could be discovered this run. Safe no-op; no long retry.")
-            return 0
-        picked = profile_candidates[0]
-
-    caption = build_caption(picked.get("caption", ""))
-    print(f"Selected: {picked['url']} ({picked.get('origin', 'unknown')})")
-
+    candidates = direct_candidates(seen)
+    if not candidates:
+        candidates = discover_api_reels(seen)
+    if not candidates:
+        raise RuntimeError("No unseen Reel found in the approved profiles.")
+    picked = candidates[0]
+    print(f"Picked {picked['url']} from {picked['origin']}")
     if DRY_RUN:
-        print("DRY_RUN=true: nothing will be published.")
-        print(caption)
+        print("DRY RUN OK")
         return 0
-
-    video_url = extract_public_video_url(picked["url"])
-    post_id = create_buffer_reel(channel_id, caption, video_url)
+    video_url = resolve_video(picked)
+    create_buffer_reel(channel_id, build_caption(picked.get("caption", "")), video_url)
     append_history(picked["url"])
-    print(f"UPLOAD REQUEST SUCCESSFUL | Buffer post id: {post_id}")
+    print("UPLOAD SUBMITTED TO BUFFER AND HISTORY RECORDED")
     return 0
 
 
@@ -447,5 +250,5 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except Exception as exc:
-        print(f"FATAL: {type(exc).__name__}: {exc}", file=sys.stderr)
+        print(f"ERROR: {type(exc).__name__}: {exc}", flush=True)
         raise
