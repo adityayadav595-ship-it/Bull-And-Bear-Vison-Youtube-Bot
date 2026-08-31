@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Test selection/caption without publishing"
+        description: "Test discovery/caption without publishing"
         required: true
         default: "false"
         type: choice
@@ -12,7 +12,7 @@ on:
           - "false"
           - "true"
   schedule:
-    # Every 3 hours (UTC). Safe no-op when no unused source exists.
+    # Every 3 hours (UTC). Safe no-op when no unseen Reel exists.
     - cron: "17 */3 * * *"
 
 permissions:
@@ -57,7 +57,10 @@ jobs:
           BRAND_NAME: Trade With Ruchi
           Ruchi_IG_USER_ID: ${{ secrets.RUCHI_IG_USER_ID }}
           Ruchi_IG_ACCESS_TOKEN: ${{ secrets.RUCHI_IG_ACCESS_TOKEN }}
+          RUCHI_SOURCE_IG_SESSION_JSON: ${{ secrets.RUCHI_SOURCE_IG_SESSION_JSON }}
           META_GRAPH_VERSION: ${{ vars.META_GRAPH_VERSION || 'v25.0' }}
+          PROFILES_PER_RUN: ${{ vars.RUCHI_PROFILES_PER_RUN || '3' }}
+          REELS_PER_PROFILE: ${{ vars.RUCHI_REELS_PER_PROFILE || '6' }}
           SHARE_TO_FEED: "true"
         run: python app.py
 
