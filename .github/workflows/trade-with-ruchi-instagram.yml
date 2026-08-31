@@ -51,13 +51,13 @@ jobs:
             echo "DRY_RUN=false" >> "$GITHUB_ENV"
           fi
 
-      - name: Upload next Reel
+      - name: Upload next Instagram Reel
         working-directory: Trade_With_Ruchi_Instagram_Bot
         env:
           BRAND_NAME: Trade With Ruchi
           Ruchi_IG_USER_ID: ${{ secrets.RUCHI_IG_USER_ID }}
           Ruchi_IG_ACCESS_TOKEN: ${{ secrets.RUCHI_IG_ACCESS_TOKEN }}
-          META_GRAPH_VERSION: ${{ vars.META_GRAPH_VERSION || 'v22.0' }}
+          META_GRAPH_VERSION: ${{ vars.META_GRAPH_VERSION || 'v25.0' }}
           SHARE_TO_FEED: "true"
         run: python app.py
 
