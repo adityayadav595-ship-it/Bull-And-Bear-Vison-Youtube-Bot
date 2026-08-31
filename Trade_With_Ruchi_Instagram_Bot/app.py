@@ -27,7 +27,9 @@ PROFILES_PER_RUN = max(1, int(os.getenv("PROFILES_PER_RUN", "3")))
 REELS_PER_PROFILE = max(1, int(os.getenv("REELS_PER_PROFILE", "3")))
 BUFFER_API_URL = "https://api.buffer.com"
 IG_API_BASE = "https://api.instagramapi.dev/v1"
-UA = "Trade-With-Ruchi-Auto-Uploader/3.0"
+UA = "Trade-With-Ruchi-Auto-Uploader/3.1"
+BUFFER_POLL_SECONDS = 5
+BUFFER_MAX_CHECKS = 96  # 8 minutes; keep polling the same Buffer post ID.
 
 
 def username(value: str) -> str:
@@ -81,10 +83,8 @@ def ig_get(path: str, params: dict) -> dict:
     if not INSTAGRAMAPI_KEY:
         raise RuntimeError("INSTAGRAMAPI_KEY GitHub secret is missing.")
     r = requests.get(
-        f"{IG_API_BASE}{path}",
-        params=params,
-        headers={"Authorization": f"Bearer {INSTAGRAMAPI_KEY}", "User-Agent": UA},
-        timeout=45,
+        f"{IG_API_BASE}{path}", params=params,
+        headers={"Authorization": f"Bearer {INSTAGRAMAPI_KEY}", "User-Agent": UA}, timeout=45,
     )
     try:
         payload = r.json()
@@ -166,15 +166,12 @@ def download_video(url: str, output: Path) -> None:
 
 def normalize_video(source: Path, output: Path) -> None:
     cmd = [
-        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
-        "-i", str(source),
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", str(source),
         "-map", "0:v:0", "-map", "0:a?",
         "-vf", "scale='min(1080,iw)':-2:force_original_aspect_ratio=decrease,fps=30,format=yuv420p",
-        "-c:v", "libx264", "-profile:v", "high", "-level", "4.1",
-        "-preset", "fast", "-crf", "23", "-maxrate", "5M", "-bufsize", "10M",
-        "-c:a", "aac", "-b:a", "128k", "-ar", "44100",
-        "-movflags", "+faststart",
-        str(output),
+        "-c:v", "libx264", "-profile:v", "high", "-level", "4.1", "-preset", "fast",
+        "-crf", "23", "-maxrate", "5M", "-bufsize", "10M",
+        "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-movflags", "+faststart", str(output),
     ]
     try:
         subprocess.run(cmd, check=True, timeout=240)
@@ -194,13 +191,8 @@ def host_on_cloudinary(video_path: Path) -> str:
         raise RuntimeError("CLOUDINARY_URL GitHub secret is missing. Add the Cloudinary API environment URL as one repository secret.")
     cloudinary.config(secure=True)
     result = cloudinary.uploader.upload_large(
-        str(video_path),
-        resource_type="video",
-        folder="trade-with-ruchi/reels",
-        use_filename=False,
-        unique_filename=True,
-        overwrite=False,
-        chunk_size=6_000_000,
+        str(video_path), resource_type="video", folder="trade-with-ruchi/reels",
+        use_filename=False, unique_filename=True, overwrite=False, chunk_size=6_000_000,
     )
     secure_url = str(result.get("secure_url") or "").strip()
     if not secure_url.startswith("https://res.cloudinary.com/"):
@@ -240,8 +232,7 @@ def buffer_graphql(query: str, variables: dict | None = None) -> dict:
     r = requests.post(
         BUFFER_API_URL,
         headers={"Authorization": f"Bearer {BUFFER_ACCESS_TOKEN}", "Content-Type": "application/json", "User-Agent": UA},
-        json={"query": query, "variables": variables or {}},
-        timeout=45,
+        json={"query": query, "variables": variables or {}}, timeout=45,
     )
     try:
         payload = r.json()
@@ -329,17 +320,21 @@ def create_buffer_reel(channel_id: str, caption: str, video_url: str) -> str:
     if status == "sent":
         print("BUFFER PUBLISH CONFIRMED |", post.get("externalLink") or "link not returned")
         return post_id
-    for attempt in range(1, 25):
-        time.sleep(5)
+
+    # Important: never create another post while this one is still processing.
+    # Poll the SAME post ID for up to 8 minutes before declaring a timeout.
+    for attempt in range(1, BUFFER_MAX_CHECKS + 1):
+        time.sleep(BUFFER_POLL_SECONDS)
         post = buffer_post_status(post_id)
         status = str(post.get("status") or "").lower()
-        print(f"Buffer publish check {attempt}/24 | status={status or 'unknown'}")
+        print(f"Buffer publish check {attempt}/{BUFFER_MAX_CHECKS} | id={post_id} | status={status or 'unknown'}")
         if status == "sent":
             print("BUFFER PUBLISH CONFIRMED |", post.get("externalLink") or "link not returned")
             return post_id
         if status == "error":
             raise RuntimeError("Buffer publishing failed: " + buffer_error_text(post))
-    raise RuntimeError(f"Buffer publish not confirmed within 120 seconds (last status={status or 'unknown'}). History not recorded.")
+    waited = BUFFER_MAX_CHECKS * BUFFER_POLL_SECONDS
+    raise RuntimeError(f"Buffer publish not confirmed within {waited} seconds for post {post_id} (last status={status or 'unknown'}). History not recorded.")
 
 
 def main() -> int:
@@ -364,5 +359,5 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except Exception as exc:
-        print(f"ERROR: {type(exc).__name__}: {exc}", flush=True)
+        print(f"ERROR: {type(exc).__name__}: {exc}")
         raise
