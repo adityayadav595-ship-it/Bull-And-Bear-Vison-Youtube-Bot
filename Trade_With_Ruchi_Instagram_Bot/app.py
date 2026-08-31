@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import itertools
+import json
 import os
 import random
 import sys
@@ -8,11 +10,13 @@ import time
 from pathlib import Path
 from urllib.parse import urlparse
 
+import instaloader
 import requests
 import yt_dlp
 
 BASE_DIR = Path(__file__).resolve().parent
 SOURCES_FILE = BASE_DIR / "sources.txt"
+PROFILES_FILE = BASE_DIR / "approved_profiles.txt"
 HISTORY_FILE = BASE_DIR / "uploaded_urls.txt"
 
 BRAND = os.getenv("BRAND_NAME", "Trade With Ruchi")
@@ -24,6 +28,9 @@ SHARE_TO_FEED = os.getenv("SHARE_TO_FEED", "true").lower() in {"1", "true", "yes
 POLL_SECONDS = max(5, int(os.getenv("POLL_SECONDS", "10")))
 MAX_WAIT_SECONDS = max(60, int(os.getenv("MAX_WAIT_SECONDS", "600")))
 MAX_FILE_BYTES = int(os.getenv("MAX_FILE_BYTES", str(1024 * 1024 * 1024)))
+PROFILES_PER_RUN = max(1, int(os.getenv("PROFILES_PER_RUN", "3")))
+REELS_PER_PROFILE = max(1, int(os.getenv("REELS_PER_PROFILE", "6")))
+SOURCE_IG_SESSION_JSON = os.getenv("RUCHI_SOURCE_IG_SESSION_JSON", "").strip()
 
 
 def _is_instagram_reel_url(url: str) -> bool:
@@ -36,6 +43,28 @@ def _is_instagram_reel_url(url: str) -> bool:
         return parsed.scheme == "https" and is_instagram and is_supported_path
     except Exception:
         return False
+
+
+def _profile_username(value: str) -> str:
+    value = value.strip()
+    if not value:
+        return ""
+    if value.startswith("http://") or value.startswith("https://"):
+        try:
+            parsed = urlparse(value)
+            host = parsed.netloc.lower().split(":")[0]
+            if host != "instagram.com" and not host.endswith(".instagram.com"):
+                return ""
+            parts = [p for p in parsed.path.split("/") if p]
+            if not parts:
+                return ""
+            value = parts[0]
+        except Exception:
+            return ""
+    value = value.lstrip("@").strip()
+    if not value or any(ch not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._" for ch in value):
+        return ""
+    return value
 
 
 def load_sources() -> list[dict]:
@@ -53,8 +82,24 @@ def load_sources() -> list[dict]:
         if not _is_instagram_reel_url(url):
             print(f"Skipping non-Instagram Reel/Post source: {url}")
             continue
-        items.append({"url": url, "caption": caption})
+        items.append({"url": url, "caption": caption, "timestamp": 0, "origin": "direct"})
     return items
+
+
+def load_profiles() -> list[str]:
+    if not PROFILES_FILE.exists():
+        return []
+    profiles: list[str] = []
+    seen: set[str] = set()
+    for raw in PROFILES_FILE.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        username = _profile_username(line)
+        if username and username.lower() not in seen:
+            profiles.append(username)
+            seen.add(username.lower())
+    return profiles
 
 
 def load_history() -> set[str]:
@@ -83,6 +128,85 @@ def build_caption(custom_caption: str) -> str:
         "For educational purposes only. Trading involves risk.\n\n"
         "#trading #trader #market #tradingeducation #tradewithruchi"
     )[:2200]
+
+
+def _build_instaloader() -> instaloader.Instaloader:
+    loader = instaloader.Instaloader(
+        download_pictures=False,
+        download_videos=False,
+        download_video_thumbnails=False,
+        save_metadata=False,
+        compress_json=False,
+        quiet=True,
+    )
+    if SOURCE_IG_SESSION_JSON:
+        try:
+            cookies = json.loads(SOURCE_IG_SESSION_JSON)
+            if not isinstance(cookies, dict):
+                raise ValueError("session secret must be a JSON object")
+            loader.context.update_cookies({str(k): str(v) for k, v in cookies.items()})
+            username = loader.test_login()
+            if username:
+                loader.context.username = username
+                print(f"Instagram source session active as @{username}.")
+            else:
+                print("Source session cookie was supplied but login could not be verified; trying public access.")
+        except Exception as exc:
+            print(f"Could not load optional Instagram source session: {type(exc).__name__}: {exc}")
+    return loader
+
+
+def _profiles_for_this_run(profiles: list[str]) -> list[str]:
+    if len(profiles) <= PROFILES_PER_RUN:
+        return profiles
+    # Rotate deterministically every 3-hour slot so all approved profiles get covered.
+    slot = int(time.time() // (3 * 60 * 60))
+    start = (slot * PROFILES_PER_RUN) % len(profiles)
+    ordered = profiles[start:] + profiles[:start]
+    return ordered[:PROFILES_PER_RUN]
+
+
+def discover_profile_reels(seen_urls: set[str]) -> list[dict]:
+    profiles = load_profiles()
+    if not profiles:
+        return []
+
+    loader = _build_instaloader()
+    selected_profiles = _profiles_for_this_run(profiles)
+    print("Scanning approved Instagram profiles:", ", ".join(f"@{u}" for u in selected_profiles))
+    candidates: list[dict] = []
+
+    for username in selected_profiles:
+        try:
+            profile = instaloader.Profile.from_username(loader.context, username)
+            reels = itertools.islice(profile.get_reels(), REELS_PER_PROFILE)
+            found = 0
+            for post in reels:
+                shortcode = str(getattr(post, "shortcode", "") or "").strip()
+                if not shortcode:
+                    continue
+                reel_url = f"https://www.instagram.com/reel/{shortcode}/"
+                if reel_url in seen_urls:
+                    continue
+                try:
+                    timestamp = int(post.date_utc.timestamp())
+                except Exception:
+                    timestamp = 0
+                candidates.append(
+                    {
+                        "url": reel_url,
+                        "caption": "",
+                        "timestamp": timestamp,
+                        "origin": f"profile:@{username}",
+                    }
+                )
+                found += 1
+            print(f"@{username}: {found} unseen Reel candidate(s) found.")
+        except Exception as exc:
+            print(f"@{username}: profile Reel discovery failed: {type(exc).__name__}: {exc}")
+
+    candidates.sort(key=lambda item: int(item.get("timestamp", 0) or 0), reverse=True)
+    return candidates
 
 
 def graph_post(path: str, data: dict) -> dict:
@@ -259,28 +383,27 @@ def publish_reel(container_id: str) -> str:
 
 
 def main() -> int:
-    sources = load_sources()
-    if not sources:
-        print(
-            "No Instagram Reel/Post sources configured. "
-            "Add approved instagram.com/reel/... URLs to sources.txt. Safe no-op."
-        )
-        return 0
-
     seen = load_history()
-    unseen = [item for item in sources if item["url"] not in seen]
-    if not unseen:
-        print("All configured Instagram sources have already been uploaded. Safe no-op.")
+
+    profile_candidates = discover_profile_reels(seen)
+    direct_candidates = [item for item in load_sources() if item["url"] not in seen]
+
+    if profile_candidates:
+        picked = profile_candidates[0]
+    elif direct_candidates:
+        random.shuffle(direct_candidates)
+        picked = direct_candidates[0]
+    else:
+        print("No unseen Reel found in approved profiles or direct sources. Safe no-op.")
         return 0
 
-    random.shuffle(unseen)
-    picked = unseen[0]
-    caption = build_caption(picked["caption"])
+    caption = build_caption(picked.get("caption", ""))
     print(f"Selected Instagram source: {picked['url']}")
+    print(f"Source origin: {picked.get('origin', 'unknown')}")
     print(f"Brand: {BRAND}")
 
     if DRY_RUN:
-        print("DRY_RUN=true: source selection/caption completed; nothing was published.")
+        print("DRY_RUN=true: discovery/selection/caption completed; nothing was published.")
         print(caption)
         return 0
 
