@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import random
+import time
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
@@ -22,7 +23,7 @@ PROFILES_PER_RUN = max(1, int(os.getenv("PROFILES_PER_RUN", "3")))
 REELS_PER_PROFILE = max(1, int(os.getenv("REELS_PER_PROFILE", "3")))
 BUFFER_API_URL = "https://api.buffer.com"
 IG_API_BASE = "https://api.instagramapi.dev/v1"
-UA = "Trade-With-Ruchi-Auto-Uploader/2.0"
+UA = "Trade-With-Ruchi-Auto-Uploader/2.1"
 
 
 def username(value: str) -> str:
@@ -137,19 +138,34 @@ def discover_api_reels(seen: set[str]) -> list[dict]:
 
 def resolve_video(item: dict) -> str:
     video = str(item.get("video_url") or "").strip()
-    if video.startswith("https://"):
-        return video
-    # Direct/manual source fallback: ask the API for the Reel details, avoiding GitHub->Instagram scraping.
-    payload = ig_get("/post", {"url": item["url"]})
-    data = payload.get("data") or {}
-    video = str(data.get("video_url") or "").strip()
+    if not video.startswith("https://"):
+        payload = ig_get("/post", {"url": item["url"]})
+        data = payload.get("data") or {}
+        video = str(data.get("video_url") or "").strip()
     if not video.startswith("https://"):
         raise RuntimeError("InstagramAPI did not return a public HTTPS video URL for the Reel.")
+
+    # Buffer fetches this URL itself, so verify it is reachable without Instagram cookies.
+    probe = requests.get(
+        video,
+        headers={"User-Agent": UA, "Range": "bytes=0-2047"},
+        timeout=30,
+        stream=True,
+        allow_redirects=True,
+    )
+    try:
+        if probe.status_code not in {200, 206}:
+            raise RuntimeError(f"Source video URL is not publicly fetchable (HTTP {probe.status_code}).")
+        content_type = str(probe.headers.get("Content-Type") or "").lower()
+        if content_type and "video" not in content_type and "octet-stream" not in content_type:
+            raise RuntimeError(f"Source URL is not a video response (Content-Type: {content_type}).")
+    finally:
+        probe.close()
+    print("Source video URL verified as publicly reachable.")
     return video
 
 
 def build_caption(source_caption: str) -> str:
-    # Do not copy source promotional captions; publish a clean brand caption.
     return (
         f"{BRAND} 📈\n\n"
         "Trading education & market-learning content.\n"
@@ -197,11 +213,44 @@ def resolve_instagram_channel() -> str:
     return str(c["id"])
 
 
+def buffer_post_status(post_id: str) -> dict:
+    query = """
+    query GetPost($id: PostId!) {
+      post(input: { id: $id }) {
+        id
+        status
+        sentAt
+        externalLink
+        error { message rawError supportUrl }
+      }
+    }
+    """
+    data = buffer_graphql(query, {"id": post_id})
+    return data.get("post") or {}
+
+
+def _buffer_error_text(post: dict) -> str:
+    err = post.get("error") or {}
+    parts = []
+    if err.get("message"):
+        parts.append(str(err["message"]))
+    if err.get("rawError") and str(err.get("rawError")) not in parts:
+        parts.append(str(err["rawError"]))
+    if err.get("supportUrl"):
+        parts.append("support=" + str(err["supportUrl"]))
+    return " | ".join(parts) or "Buffer marked the post as error without an error message."
+
+
 def create_buffer_reel(channel_id: str, caption: str, video_url: str) -> str:
     mutation = """
     mutation CreateInstagramReel($input: CreatePostInput!) {
       createPost(input: $input) {
-        ... on PostActionSuccess { post { id text dueAt status } }
+        ... on PostActionSuccess {
+          post {
+            id text dueAt status sentAt externalLink
+            error { message rawError supportUrl }
+          }
+        }
         ... on MutationError { message }
       }
     }
@@ -222,8 +271,28 @@ def create_buffer_reel(channel_id: str, caption: str, video_url: str) -> str:
     post_id = str(post.get("id") or "").strip()
     if not post_id:
         raise RuntimeError(f"Buffer did not return a post id: {result}")
-    print(f"BUFFER POST CREATED | id={post_id} | status={post.get('status')}")
-    return post_id
+
+    status = str(post.get("status") or "").lower()
+    print(f"BUFFER POST CREATED | id={post_id} | status={status or 'unknown'}")
+    if status == "error":
+        raise RuntimeError("Buffer publishing failed: " + _buffer_error_text(post))
+    if status == "sent":
+        print("BUFFER PUBLISH CONFIRMED | status=sent | link=", post.get("externalLink") or "not returned")
+        return post_id
+
+    # shareNow can briefly be scheduled/sending. Do not record history until Buffer confirms sent.
+    for attempt in range(1, 13):
+        time.sleep(5)
+        post = buffer_post_status(post_id)
+        status = str(post.get("status") or "").lower()
+        print(f"Buffer publish check {attempt}/12 | status={status or 'unknown'}")
+        if status == "sent":
+            print("BUFFER PUBLISH CONFIRMED | status=sent | link=", post.get("externalLink") or "not returned")
+            return post_id
+        if status == "error":
+            raise RuntimeError("Buffer publishing failed: " + _buffer_error_text(post))
+
+    raise RuntimeError(f"Buffer publish was not confirmed within 60 seconds (last status={status or 'unknown'}). History not recorded.")
 
 
 def main() -> int:
@@ -242,7 +311,7 @@ def main() -> int:
     video_url = resolve_video(picked)
     create_buffer_reel(channel_id, build_caption(picked.get("caption", "")), video_url)
     append_history(picked["url"])
-    print("UPLOAD SUBMITTED TO BUFFER AND HISTORY RECORDED")
+    print("UPLOAD CONFIRMED ON INSTAGRAM VIA BUFFER AND HISTORY RECORDED")
     return 0
 
 
