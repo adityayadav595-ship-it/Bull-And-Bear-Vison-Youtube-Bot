@@ -1,7 +1,13 @@
 # Trade With Ruchi — approved Instagram source profiles
-# Add one username or profile URL per line.
-# Examples:
-# trade_with_example
-# https://www.instagram.com/trade_with_example/
-#
-# Only profiles you own or have permission to republish from should be added here.
+# Synced from Bull_Bear_Final_GitHub_Bot/approved_sources.txt
+# Only profiles you own or have permission to republish from should be kept here.
+
+https://www.instagram.com/rimesh0001/
+https://www.instagram.com/zetabinarytrading/
+https://www.instagram.com/dev_trading_room/
+https://www.instagram.com/tradewithprashant01/
+https://www.instagram.com/shubhamtrading009/
+https://www.instagram.com/vickyyadav0310/
+https://www.instagram.com/a33trade/
+https://www.instagram.com/facttakviral/
+https://www.instagram.com/bnf_2_crypto/
