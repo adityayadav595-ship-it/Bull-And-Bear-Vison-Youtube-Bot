@@ -1,7 +1,8 @@
 # Trade With Ruchi — approved Instagram source profiles
-# Synced from Bull_Bear_Final_GitHub_Bot/approved_sources.txt
+# Priority source is listed first.
 # Only profiles you own or have permission to republish from should be kept here.
 
+https://www.instagram.com/sonamrajpoot932/
 https://www.instagram.com/rimesh0001/
 https://www.instagram.com/zetabinarytrading/
 https://www.instagram.com/dev_trading_room/
