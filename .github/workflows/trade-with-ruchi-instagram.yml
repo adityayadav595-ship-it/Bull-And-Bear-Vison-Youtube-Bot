@@ -33,7 +33,7 @@ concurrency:
 jobs:
   upload-reel:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 12
 
     steps:
       - name: Checkout repository
@@ -48,7 +48,10 @@ jobs:
 
       - name: Install dependencies
         working-directory: Trade_With_Ruchi_Instagram_Bot
-        run: pip install -r requirements.txt
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y ffmpeg
+          pip install -r requirements.txt
 
       - name: Configure run mode
         shell: bash
@@ -66,7 +69,7 @@ jobs:
           BUFFER_ACCESS_TOKEN: ${{ secrets.BUFFER_ACCESS_TOKEN }}
           BUFFER_CHANNEL_ID: ${{ secrets.BUFFER_CHANNEL_ID }}
           INSTAGRAMAPI_KEY: ${{ secrets.INSTAGRAMAPI_KEY }}
-          RUCHI_SOURCE_IG_SESSION_JSON: ${{ secrets.RUCHI_SOURCE_IG_SESSION_JSON }}
+          CLOUDINARY_URL: ${{ secrets.CLOUDINARY_URL }}
           PROFILES_PER_RUN: ${{ vars.RUCHI_PROFILES_PER_RUN || '3' }}
           REELS_PER_PROFILE: ${{ vars.RUCHI_REELS_PER_PROFILE || '3' }}
         run: python app.py
