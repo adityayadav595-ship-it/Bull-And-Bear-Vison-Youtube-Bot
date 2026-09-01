@@ -15,6 +15,11 @@ _original_append_history = app.append_history
 
 def _dhash(frame) -> int:
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    # Ignore common top/bottom overlays and small crops before hashing.
+    h, w = gray.shape[:2]
+    y1, y2 = int(h * 0.12), int(h * 0.88)
+    x1, x2 = int(w * 0.06), int(w * 0.94)
+    gray = gray[y1:y2, x1:x2]
     small = cv2.resize(gray, (9, 8), interpolation=cv2.INTER_AREA)
     diff = small[:, 1:] > small[:, :-1]
     value = 0
@@ -23,51 +28,79 @@ def _dhash(frame) -> int:
     return value
 
 
-def video_fingerprint(path: Path) -> str:
+def video_hashes(path: Path) -> list[int]:
     cap = cv2.VideoCapture(str(path))
     if not cap.isOpened():
         raise RuntimeError("Duplicate checker could not inspect the video.")
     frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
     hashes: list[int] = []
-    for i in range(8):
+    # More samples makes reposts with trims/intros much harder to slip through.
+    for i in range(16):
         if frames > 1:
-            cap.set(cv2.CAP_PROP_POS_FRAMES, int((frames - 1) * i / 7))
+            cap.set(cv2.CAP_PROP_POS_FRAMES, int((frames - 1) * i / 15))
         ok, frame = cap.read()
         if ok:
             hashes.append(_dhash(frame))
     cap.release()
-    if len(hashes) < 4:
+    if len(hashes) < 6:
         raise RuntimeError("Duplicate checker could not sample enough frames.")
-    return "".join(f"{h:016x}" for h in hashes)
+    return hashes
 
 
-def _load_fingerprints() -> list[str]:
+def video_fingerprint(path: Path) -> str:
+    return ",".join(f"{h:016x}" for h in video_hashes(path))
+
+
+def _parse_fp(value: str) -> list[int]:
+    value = value.strip().lower()
+    try:
+        if "," in value:
+            return [int(x, 16) for x in value.split(",") if x]
+        # Backward compatibility with old 8-frame concatenated fingerprints.
+        if len(value) % 16 == 0:
+            return [int(value[i:i + 16], 16) for i in range(0, len(value), 16)]
+    except ValueError:
+        pass
+    return []
+
+
+def _load_fingerprints() -> list[list[int]]:
     if not FINGERPRINT_FILE.exists():
         return []
-    return [
-        line.strip().lower()
-        for line in FINGERPRINT_FILE.read_text(encoding="utf-8").splitlines()
-        if line.strip() and not line.lstrip().startswith("#")
-    ]
+    out = []
+    for line in FINGERPRINT_FILE.read_text(encoding="utf-8").splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        fp = _parse_fp(line)
+        if fp:
+            out.append(fp)
+    return out
 
 
-def _distance_ratio(a: str, b: str) -> float:
-    if len(a) != len(b):
-        return 1.0
-    try:
-        x = int(a, 16) ^ int(b, 16)
-    except ValueError:
-        return 1.0
-    return x.bit_count() / max(1, len(a) * 4)
+def _ham(a: int, b: int) -> float:
+    return (a ^ b).bit_count() / 64.0
+
+
+def _similarity(new: list[int], old: list[int]) -> float:
+    if not new or not old:
+        return 0.0
+    # Sequence-independent matching catches the same clip after trimming,
+    # different frame rate, minor crop, compression or added intro/outro.
+    matches = 0
+    for h in new:
+        if min(_ham(h, x) for x in old) <= 0.16:
+            matches += 1
+    return matches / len(new)
 
 
 def is_duplicate(fp: str) -> tuple[bool, float]:
-    best = 1.0
+    new = _parse_fp(fp)
+    best = 0.0
     for old in _load_fingerprints():
-        d = _distance_ratio(fp, old)
-        best = min(best, d)
-        if d <= 0.12:
-            return True, d
+        score = _similarity(new, old)
+        best = max(best, score)
+        if score >= 0.50:
+            return True, score
     return False, best
 
 
@@ -80,9 +113,9 @@ def dedupe_prepare_candidate(item: dict) -> str | None:
         app.download_candidate(item, source)
 
         fp = video_fingerprint(source)
-        duplicate, distance = is_duplicate(fp)
+        duplicate, similarity = is_duplicate(fp)
         if duplicate:
-            print(f"SKIP DUPLICATE VIDEO: {item['url']} | perceptual distance={distance:.3f}")
+            print(f"SKIP DUPLICATE VIDEO: {item['url']} | visual similarity={similarity:.0%}")
             return None
 
         if app.face_heavy(source):
