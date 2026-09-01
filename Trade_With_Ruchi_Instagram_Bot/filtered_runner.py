@@ -3,8 +3,8 @@ from __future__ import annotations
 import random
 import re
 import tempfile
-import time
 from pathlib import Path
+from urllib.parse import parse_qs, unquote, urlparse
 
 import cv2
 import pytesseract
@@ -13,14 +13,15 @@ from yt_dlp import YoutubeDL
 
 import app
 
-# Free Instagram scraping is intentionally conservative: priority profile first,
-# then at most one rotating secondary profile. If Instagram rate-limits the
-# runner, stop further Instagram requests for that run instead of hammering it.
+# Keep the priority source first, but avoid repeatedly hitting Instagram profile
+# endpoints from GitHub-hosted runners. Discovery is done through public web
+# search results; Instagram itself is contacted only when an individual Reel is
+# selected for download.
 app.PROFILES_PER_RUN = 2
 app.REELS_PER_PROFILE = max(app.REELS_PER_PROFILE, 3)
+app.MAX_CANDIDATES_TO_TEST = max(app.MAX_CANDIDATES_TO_TEST, 12)
 PRIORITY_PROFILE = "sonamrajpoot932"
-IG_APP_ID = "936619743392459"
-IG_BROWSER_UA = (
+BROWSER_UA = (
     "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) "
     "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1"
 )
@@ -34,114 +35,82 @@ PROFILE_UI_WORDS = ("instagram", "follow", "followers", "following", "profile", 
 TRADING_WORDS = ("trade", "trader", "trading", "forex", "quotex", "binary", "signals")
 
 
-def _node_to_candidate(node: dict, handle: str, seen: set[str]) -> dict | None:
-    if not isinstance(node, dict) or not node.get("is_video"):
-        return None
-    code = str(node.get("shortcode") or "").strip()
-    if not code:
-        return None
-    reel_url = f"https://www.instagram.com/reel/{code}/"
-    if reel_url in seen:
-        return None
-    caption = ""
-    edges = ((node.get("edge_media_to_caption") or {}).get("edges") or [])
-    if edges and isinstance(edges[0], dict):
-        caption = str((edges[0].get("node") or {}).get("text") or "")
-    return {
-        "url": reel_url,
-        "caption": caption,
-        "video_url": str(node.get("video_url") or "").strip(),
-        "taken_at": str(node.get("taken_at_timestamp") or ""),
-        "origin": f"instagram-free:@{handle}",
-        "priority": handle.lower() == PRIORITY_PROFILE,
-    }
+def _clean_search_href(href: str) -> str:
+    href = unquote(str(href or "").strip())
+    if not href:
+        return ""
+    if href.startswith("//"):
+        href = "https:" + href
+    parsed = urlparse(href)
+    if "duckduckgo.com" in parsed.netloc:
+        target = (parse_qs(parsed.query).get("uddg") or [""])[0]
+        if target:
+            href = unquote(target)
+    return href
 
 
-def free_profile_candidates(handle: str, seen: set[str]) -> tuple[list[dict], bool]:
-    """Return (candidates, rate_limited). Uses one browser-like JSON request first."""
+def web_search_urls(query: str, required_fragment: str, limit: int = 8) -> list[str]:
+    """Best-effort keyless discovery through DuckDuckGo HTML results."""
     headers = {
-        "User-Agent": IG_BROWSER_UA,
-        "Accept": "*/*",
+        "User-Agent": BROWSER_UA,
         "Accept-Language": "en-US,en;q=0.9",
-        "X-IG-App-ID": IG_APP_ID,
-        "X-Requested-With": "XMLHttpRequest",
-        "Referer": f"https://www.instagram.com/{handle}/",
-    }
-    url = "https://www.instagram.com/api/v1/users/web_profile_info/"
-    out: list[dict] = []
-    try:
-        r = requests.get(url, params={"username": handle}, headers=headers, timeout=25)
-        if r.status_code == 429:
-            print(f"Free Instagram @{handle}: HTTP 429; stopping Instagram requests for this run.")
-            return [], True
-        if r.ok:
-            payload = r.json()
-            user = ((payload.get("data") or {}).get("user") or {})
-            collections = [
-                ((user.get("edge_felix_video_timeline") or {}).get("edges") or []),
-                ((user.get("edge_owner_to_timeline_media") or {}).get("edges") or []),
-            ]
-            for edges in collections:
-                for edge in edges:
-                    node = (edge or {}).get("node") or {}
-                    item = _node_to_candidate(node, handle, seen)
-                    if item and all(x["url"] != item["url"] for x in out):
-                        out.append(item)
-                    if len(out) >= app.REELS_PER_PROFILE:
-                        break
-                if len(out) >= app.REELS_PER_PROFILE:
-                    break
-            if out:
-                print(f"@{handle}: {len(out)} free web candidate(s)")
-                return out, False
-        else:
-            print(f"Free Instagram web endpoint @{handle}: HTTP {r.status_code}")
-    except Exception as exc:
-        print(f"Free Instagram web endpoint @{handle} failed: {exc}")
-
-    # Last-resort yt-dlp discovery: one attempt only, no retries.
-    profile_url = f"https://www.instagram.com/{handle}/reels/"
-    opts = {
-        "quiet": True,
-        "no_warnings": True,
-        "extract_flat": True,
-        "playlistend": max(6, app.REELS_PER_PROFILE * 2),
-        "socket_timeout": 25,
-        "retries": 0,
-        "fragment_retries": 0,
-        "http_headers": {"User-Agent": IG_BROWSER_UA, "Referer": f"https://www.instagram.com/{handle}/"},
     }
     try:
-        with YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(profile_url, download=False)
-        for entry in (info or {}).get("entries") or []:
-            if len(out) >= app.REELS_PER_PROFILE:
+        r = requests.get(
+            "https://html.duckduckgo.com/html/",
+            params={"q": query},
+            headers=headers,
+            timeout=25,
+        )
+        if not r.ok:
+            print(f"Search discovery HTTP {r.status_code} for: {query}")
+            return []
+        links = re.findall(r'href=["\']([^"\']+)["\']', r.text, flags=re.I)
+        out: list[str] = []
+        for raw in links:
+            url = _clean_search_href(raw)
+            if required_fragment.lower() not in url.lower():
+                continue
+            url = url.split("?")[0]
+            if url not in out:
+                out.append(url)
+            if len(out) >= limit:
                 break
-            if not isinstance(entry, dict):
-                continue
-            code = str(entry.get("id") or "").strip()
-            reel_url = str(entry.get("webpage_url") or entry.get("url") or "").strip()
-            if reel_url and not reel_url.startswith("http"):
-                reel_url = ""
-            if not reel_url and code:
-                reel_url = f"https://www.instagram.com/reel/{code}/"
-            if not reel_url or reel_url in seen:
-                continue
-            out.append({
-                "url": reel_url,
-                "caption": str(entry.get("title") or entry.get("description") or ""),
-                "video_url": "",
-                "taken_at": str(entry.get("timestamp") or entry.get("upload_date") or ""),
-                "origin": f"instagram-free:@{handle}",
-                "priority": handle.lower() == PRIORITY_PROFILE,
-            })
+        return out
     except Exception as exc:
-        msg = str(exc)
-        limited = "429" in msg or "Too Many Requests" in msg
-        print(f"Free Instagram yt-dlp @{handle} failed: {exc}")
-        return out, limited
-    print(f"@{handle}: {len(out)} free Instagram candidate(s)")
-    return out, False
+        print(f"Search discovery failed for {query}: {exc}")
+        return []
+
+
+def free_profile_candidates(handle: str, seen: set[str]) -> list[dict]:
+    queries = [
+        f'site:instagram.com/reel/ "{handle}"',
+        f'site:instagram.com/reels/ "{handle}"',
+    ]
+    urls: list[str] = []
+    for query in queries:
+        for url in web_search_urls(query, "instagram.com/reel/", limit=app.REELS_PER_PROFILE * 2):
+            if url not in urls:
+                urls.append(url)
+        if len(urls) >= app.REELS_PER_PROFILE:
+            break
+
+    out: list[dict] = []
+    for reel_url in urls:
+        if reel_url in seen:
+            continue
+        out.append({
+            "url": reel_url,
+            "caption": "",
+            "video_url": "",
+            "taken_at": "",
+            "origin": f"instagram-search:@{handle}",
+            "priority": handle.lower() == PRIORITY_PROFILE,
+        })
+        if len(out) >= app.REELS_PER_PROFILE:
+            break
+    print(f"@{handle}: {len(out)} search-discovered Instagram candidate(s)")
+    return out
 
 
 def priority_instagram_candidates(seen: set[str]) -> list[dict]:
@@ -151,50 +120,72 @@ def priority_instagram_candidates(seen: set[str]) -> list[dict]:
     others = [x for x in profiles if x.lower() != PRIORITY_PROFILE]
     random.shuffle(others)
     selected = ([priority] if priority else []) + others[:1]
-    print("Instagram scanning (priority first, low-request mode):", ", ".join("@" + u for u in selected))
+    print("Instagram search discovery (priority first):", ", ".join("@" + u for u in selected))
 
     found: list[dict] = []
-    for idx, u in enumerate(selected):
-        api_ok = False
-        try:
-            payload = app.ig_get("/profile/reels", {"handle": u})
-            data = payload.get("data") or {}
-            items = (data.get("items") if isinstance(data, dict) else []) or []
-            count = 0
-            for item in items:
-                if count >= app.REELS_PER_PROFILE:
-                    break
-                code = str(item.get("shortcode") or "").strip()
-                reel_url = str(item.get("url") or "").strip() or (f"https://www.instagram.com/reel/{code}/" if code else "")
-                if not reel_url or reel_url in seen:
-                    continue
-                found.append({
-                    "url": reel_url,
-                    "caption": str(item.get("caption") or ""),
-                    "video_url": str(item.get("video_url") or "").strip(),
-                    "taken_at": str(item.get("taken_at") or ""),
-                    "origin": f"instagram:@{u}",
-                    "priority": u.lower() == PRIORITY_PROFILE,
-                })
-                count += 1
-            api_ok = True
-            print(f"@{u}: {count} API candidate(s)")
-        except Exception as exc:
-            print(f"Instagram API @{u} unavailable; using free fallback: {exc}")
-        if not api_ok:
-            free_items, limited = free_profile_candidates(u, seen)
-            found.extend(free_items)
-            if limited:
-                break
-        if idx == 0 and len(selected) > 1:
-            time.sleep(random.uniform(3.0, 6.0))
+    for u in selected:
+        found.extend(free_profile_candidates(u, seen))
 
     dedup: dict[str, dict] = {}
     for item in found:
         dedup.setdefault(item["url"], item)
     found = list(dedup.values())
-    found.sort(key=lambda x: (bool(x.get("priority")), x.get("taken_at", "")), reverse=True)
+    found.sort(key=lambda x: bool(x.get("priority")), reverse=True)
     return found
+
+
+def _pinterest_username_from_url(url: str) -> str:
+    try:
+        p = urlparse(url)
+        parts = [x for x in p.path.split("/") if x]
+        if not parts or parts[0].lower() in {"pin", "ideas", "search"}:
+            return ""
+        return parts[0]
+    except Exception:
+        return ""
+
+
+def resilient_pinterest_candidates(seen: set[str]) -> list[dict]:
+    out: list[dict] = []
+    headers = {"User-Agent": BROWSER_UA, "Accept-Language": "en-US,en;q=0.9"}
+
+    for source in app.read_urls(app.PINTEREST_FILE):
+        if len(out) >= 16:
+            break
+        final_url = source
+        try:
+            r = requests.get(source, headers=headers, timeout=20, allow_redirects=True)
+            final_url = str(r.url or source)
+        except Exception as exc:
+            print(f"Pinterest source resolve warning: {source} | {exc}")
+
+        if "/pin/" in final_url.lower():
+            pin = final_url.split("?")[0]
+            if pin not in seen and all(x["url"] != pin for x in out):
+                out.append({"url": pin, "caption": "", "video_url": "", "taken_at": "", "origin": "pinterest"})
+            continue
+
+        username = _pinterest_username_from_url(final_url)
+        if not username:
+            continue
+        queries = [
+            f'site:pinterest.com/pin/ "{username}"',
+            f'site:pinterest.com/pin/ {username} trading',
+        ]
+        for query in queries:
+            pins = web_search_urls(query, "pinterest.com/pin/", limit=4)
+            for pin in pins:
+                pin = pin.split("?")[0]
+                if pin in seen or any(x["url"] == pin for x in out):
+                    continue
+                out.append({"url": pin, "caption": "", "video_url": "", "taken_at": "", "origin": "pinterest"})
+                if len(out) >= 16:
+                    break
+            if pins:
+                break
+
+    print(f"Pinterest resolved/search pool: {len(out)} candidate(s)")
+    return out
 
 
 def priority_mixed_candidates(seen: set[str]) -> list[dict]:
@@ -202,7 +193,7 @@ def priority_mixed_candidates(seen: set[str]) -> list[dict]:
     priority = [x for x in ig if x.get("priority")]
     other_ig = [x for x in ig if not x.get("priority")]
     direct = app.direct_candidates(seen)
-    pinterest = app.pinterest_candidates(seen)
+    pinterest = resilient_pinterest_candidates(seen)
     rest = direct + other_ig + pinterest
     random.shuffle(rest)
     print(f"Candidate pool | priority={len(priority)} | other_ig={len(other_ig)} | direct={len(direct)} | pinterest={len(pinterest)}")
@@ -220,7 +211,7 @@ def free_instagram_video_url(item: dict) -> str:
         "socket_timeout": 35,
         "retries": 1,
         "fragment_retries": 1,
-        "http_headers": {"User-Agent": IG_BROWSER_UA, "Referer": "https://www.instagram.com/"},
+        "http_headers": {"User-Agent": BROWSER_UA, "Referer": "https://www.instagram.com/"},
     }
     with YoutubeDL(opts) as ydl:
         info = ydl.extract_info(item["url"], download=False)
@@ -240,6 +231,9 @@ def instagram_video_url_with_fallback(item: dict) -> str:
     direct = str(item.get("video_url") or "").strip()
     if direct.startswith("https://"):
         return direct
+    # Skip the exhausted paid discovery path for search-discovered Reels.
+    if str(item.get("origin") or "").startswith("instagram-search"):
+        return free_instagram_video_url(item)
     try:
         return app._original_instagram_video_url(item)
     except Exception as exc:
@@ -316,6 +310,7 @@ def filtered_prepare_candidate(item: dict) -> str | None:
 app._original_instagram_video_url = app.instagram_video_url
 app.instagram_video_url = instagram_video_url_with_fallback
 app.instagram_candidates = priority_instagram_candidates
+app.pinterest_candidates = resilient_pinterest_candidates
 app.mixed_candidates = priority_mixed_candidates
 app.prepare_candidate = filtered_prepare_candidate
 
