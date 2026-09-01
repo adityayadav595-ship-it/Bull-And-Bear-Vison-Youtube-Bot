@@ -12,7 +12,8 @@ on:
           - "false"
           - "true"
   schedule:
-    - cron: "17 */3 * * *"
+    # Every 3 hours, offset away from GitHub's busy top-of-hour window.
+    - cron: "37 */3 * * *"
   push:
     branches:
       - main
@@ -31,12 +32,12 @@ permissions:
 
 concurrency:
   group: trade-with-ruchi-instagram-uploader
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   upload-reel:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 20
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
