@@ -12,8 +12,8 @@ on:
           - "false"
           - "true"
   schedule:
-    # Every 3 hours, offset away from GitHub's busy top-of-hour window.
-    - cron: "37 */3 * * *"
+    # Every 3 hours, anchored at 19:08 IST (13:38 UTC).
+    - cron: "38 1,4,7,10,13,16,19,22 * * *"
   push:
     branches:
       - main
