@@ -10,13 +10,17 @@ import pytesseract
 
 import app
 
+# Keep the existing quality/safety filters, but scan a wider Instagram pool so
+# one face-heavy/branded profile cannot stall an entire scheduled run.
+app.PROFILES_PER_RUN = max(app.PROFILES_PER_RUN, 5)
+app.REELS_PER_PROFILE = max(app.REELS_PER_PROFILE, 4)
+
 PRIORITY_PROFILE = "sonamrajpoot932"
 
 PROFILE_PATTERNS = [
     re.compile(r"@[a-z0-9_.]{3,}", re.I),
     re.compile(r"\btrade\s*with\s+[a-z0-9_.]{2,}", re.I),
     re.compile(r"\btrading\s*(?:room|official|signals?|academy|channel|club|king|queen|pro)\b", re.I),
-    re.compile(r"\b[a-z0-9_.]{3,}\s*(?:trader|trading)\b", re.I),
 ]
 PROFILE_UI_WORDS = ("instagram", "follow", "followers", "following", "profile", "telegram", "youtube")
 TRADING_WORDS = ("trade", "trader", "trading", "forex", "quotex", "binary", "signals")
@@ -56,8 +60,15 @@ def priority_instagram_candidates(seen: set[str]) -> list[dict]:
 def priority_mixed_candidates(seen: set[str]) -> list[dict]:
     ig = priority_instagram_candidates(seen)
     priority = [x for x in ig if x.get("priority")]
-    rest = app.direct_candidates(seen) + [x for x in ig if not x.get("priority")] + app.pinterest_candidates(seen)
+    other_ig = [x for x in ig if not x.get("priority")]
+    direct = app.direct_candidates(seen)
+    pinterest = app.pinterest_candidates(seen)
+    rest = direct + other_ig + pinterest
     random.shuffle(rest)
+    print(
+        f"Candidate pool | priority={len(priority)} | other_ig={len(other_ig)} | "
+        f"direct={len(direct)} | pinterest={len(pinterest)}"
+    )
     return priority + rest
 
 
