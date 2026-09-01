@@ -1,100 +1,10 @@
 name: Bull & Bear Vision - Autorun
 
-on:
-  workflow_dispatch:
-  schedule:
-    # Refreshed scheduler registration: every 2 hours at :23 UTC.
-    - cron: "23 0,2,4,6,8,10,12,14,16,18,20,22 * * *"
+# YouTube uploader intentionally stopped.
+# No schedule and no workflow_dispatch trigger: no more automatic or manual uploads from this workflow.
+on: {}
 
 permissions:
-  contents: write
+  contents: read
 
-concurrency:
-  group: bull-and-bear-vision-single-channel
-  cancel-in-progress: false
-
-jobs:
-  upload:
-    name: Bull & Bear Vision Upload
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-
-    steps:
-      - name: Checkout latest main
-        uses: actions/checkout@v4
-        with:
-          ref: main
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install FFmpeg and OCR
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg tesseract-ocr
-
-      - name: Install dependencies
-        working-directory: Bull_Bear_Final_GitHub_Bot
-        run: pip install -r requirements.txt
-
-      - name: Prepare optional Instagram session
-        working-directory: Bull_Bear_Final_GitHub_Bot
-        env:
-          INSTAGRAM_COOKIES_B64: ${{ secrets.INSTAGRAM_COOKIES_B64 }}
-        run: |
-          rm -f instagram_cookies.txt
-          if [ -n "$INSTAGRAM_COOKIES_B64" ]; then
-            printf '%s' "$INSTAGRAM_COOKIES_B64" | base64 --decode > instagram_cookies.txt
-            chmod 600 instagram_cookies.txt
-            echo "Instagram authenticated session prepared."
-          else
-            echo "INSTAGRAM_COOKIES_B64 not configured; using public Instagram discovery."
-          fi
-
-      - name: Run Bull & Bear Vision uploader
-        working-directory: Bull_Bear_Final_GitHub_Bot
-        env:
-          CONFIG_FILE: "config_channel2.yaml"
-          YOUTUBE_CLIENT_ID: ${{ secrets.YT2_CLIENT_ID }}
-          YOUTUBE_CLIENT_SECRET: ${{ secrets.YT2_CLIENT_SECRET }}
-          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YT2_REFRESH_TOKEN }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GEMINI_MODEL: "gemini-3.7-flash"
-          INSTAGRAM_COOKIES_FILE: "instagram_cookies.txt"
-          CHANNEL_BRAND: "Bull & Bear Vision"
-          CHANNEL_STATE: "active"
-          BOT_RUN_MODE: "upload"
-          I_HAVE_RIGHTS_TO_REPOST: "true"
-          MANUAL_APPROVAL_REQUIRED: "false"
-          YOUTUBE_PRIVACY: "public"
-          MADE_FOR_KIDS: "false"
-          CONTAINS_SYNTHETIC_MEDIA: "false"
-        run: |
-          if [ ! -s instagram_cookies.txt ]; then unset INSTAGRAM_COOKIES_FILE; fi
-          python app.py
-
-      - name: Save upload and duplicate history
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          for p in \
-            Bull_Bear_Final_GitHub_Bot/review_queue_channel2.jsonl \
-            Bull_Bear_Final_GitHub_Bot/uploaded_ids.txt \
-            Bull_Bear_Final_GitHub_Bot/uploaded_hashes.txt \
-            Bull_Bear_Final_GitHub_Bot/metadata_history_channel2.jsonl \
-            Bull_Bear_Final_GitHub_Bot/invalid_pins.txt \
-            Bull_Bear_Final_GitHub_Bot/pin_failures.txt
-          do
-            if [ -e "$p" ] || git ls-files --error-unmatch "$p" >/dev/null 2>&1; then
-              git add -A -- "$p"
-            fi
-          done
-          if git diff --cached --quiet; then
-            echo "No upload/history change."
-            exit 0
-          fi
-          echo "State changes detected:"
-          git diff --cached --name-status
-          git commit -m "Update Bull & Bear Vision upload history"
-          git pull --rebase origin main
-          git push origin main
+jobs: {}
