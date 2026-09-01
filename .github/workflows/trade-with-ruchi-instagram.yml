@@ -19,6 +19,7 @@ on:
     paths:
       - "Trade_With_Ruchi_Instagram_Bot/app.py"
       - "Trade_With_Ruchi_Instagram_Bot/filtered_runner.py"
+      - "Trade_With_Ruchi_Instagram_Bot/dedupe_runner.py"
       - "Trade_With_Ruchi_Instagram_Bot/requirements.txt"
       - "Trade_With_Ruchi_Instagram_Bot/sources.txt"
       - "Trade_With_Ruchi_Instagram_Bot/approved_profiles.txt"
@@ -69,18 +70,18 @@ jobs:
           CLOUDINARY_URL: ${{ secrets.CLOUDINARY_URL }}
           PROFILES_PER_RUN: ${{ vars.RUCHI_PROFILES_PER_RUN || '3' }}
           REELS_PER_PROFILE: ${{ vars.RUCHI_REELS_PER_PROFILE || '3' }}
-        run: python filtered_runner.py
+        run: python dedupe_runner.py
       - name: Save upload history
         if: ${{ success() }}
         shell: bash
         run: |
-          if git diff --quiet -- Trade_With_Ruchi_Instagram_Bot/uploaded_urls.txt; then
+          if git diff --quiet -- Trade_With_Ruchi_Instagram_Bot/uploaded_urls.txt Trade_With_Ruchi_Instagram_Bot/uploaded_fingerprints.txt; then
             echo "No new upload history to commit."
             exit 0
           fi
           git config user.name "trade-with-ruchi-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Trade_With_Ruchi_Instagram_Bot/uploaded_urls.txt
+          git add Trade_With_Ruchi_Instagram_Bot/uploaded_urls.txt Trade_With_Ruchi_Instagram_Bot/uploaded_fingerprints.txt
           git commit -m "Record Trade With Ruchi Instagram upload"
           git pull --rebase origin main
           git push origin HEAD:main
